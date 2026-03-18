@@ -9,6 +9,8 @@
   "include": [
     "src/**/*.d.ts",
     "src/app/pages/**/*.page.ts",
-    "src/server/middleware/**/*.ts"
+    "src/config/**/*.ts",
+    "src/server/**/*.ts",
+    "src/graphql/**/*.ts"
   ]
 }

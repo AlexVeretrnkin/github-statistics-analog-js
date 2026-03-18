@@ -1,0 +1,121 @@
+<form class="filters-form" [formGroup]="filtersForm" (ngSubmit)="submit()">
+  <mat-form-field appearance="outline">
+    <mat-label>Owner</mat-label>
+    <input matInput formControlName="owner" placeholder="facebook" />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Repository</mat-label>
+    <input matInput formControlName="repo" placeholder="react" />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>From</mat-label>
+    <mat-select formControlName="from">
+      @for (option of monthOptions; track trackMonthOption($index, option)) {
+        <mat-option [value]="option.value">{{ option.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>To</mat-label>
+    <mat-select formControlName="to">
+      @for (option of monthOptions; track trackMonthOption($index, option)) {
+        <mat-option [value]="option.value">{{ option.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <div class="comparison-sets" formArrayName="comparisonSets">
+    @for (
+      comparisonSet of comparisonSets.controls;
+      track trackComparisonSet($index, comparisonSet);
+      let setIndex = $index
+    ) {
+      <section class="comparison-set" [formGroupName]="setIndex">
+        <div class="comparison-set__header">
+          <div>
+            <p class="comparison-set__eyebrow">Comparison set</p>
+            <h3>{{ getSetTitle(setIndex) }}</h3>
+          </div>
+
+          @if (comparisonSets.length > 1) {
+            <button
+              mat-stroked-button
+              type="button"
+              class="comparison-set__remove"
+              (click)="removeComparisonSet(setIndex)"
+            >
+              Remove
+            </button>
+          }
+        </div>
+
+        <mat-form-field appearance="outline" class="labels-field">
+          <mat-label>Labels for {{ getSetTitle(setIndex) }}</mat-label>
+          <mat-chip-grid [attr.id]="'chip-grid-' + comparisonSet.controls.id.value" #chipGrid>
+            @for (label of comparisonSet.controls.labels.value; track $index) {
+              <mat-chip-row (removed)="removeLabel(setIndex, label)">
+                {{ label }}
+                <button matChipRemove type="button" aria-label="Remove label">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </mat-chip-row>
+            }
+
+            <input
+              matInput
+              [matChipInputFor]="chipGrid"
+              [matAutocomplete]="labelsAutocomplete"
+              [attr.id]="'label-search-' + comparisonSet.controls.id.value"
+              [value]="getLabelSearch(comparisonSet.controls.id.value)"
+              (input)="updateLabelSearch(comparisonSet.controls.id.value, $any($event.target).value)"
+              placeholder="Search labels"
+            />
+          </mat-chip-grid>
+
+          <mat-autocomplete
+            [displayWith]="displayLabelName"
+            #labelsAutocomplete="matAutocomplete"
+            (optionSelected)="addLabel(setIndex, $event.option.value)"
+          >
+            @for (
+              label of getFilteredLabelOptions(setIndex);
+              track trackLabelOption($index, label)
+            ) {
+              <mat-option [value]="label.name">
+                <span>{{ label.name }}</span>
+                @if (label.description) {
+                  <span class="option-description">· {{ label.description }}</span>
+                }
+              </mat-option>
+            }
+          </mat-autocomplete>
+        </mat-form-field>
+      </section>
+    }
+  </div>
+
+  <div class="filters-actions">
+    <button mat-stroked-button type="button" (click)="requestLabels()">
+      @if (loadingLabels()) {
+        <mat-spinner diameter="18"></mat-spinner>
+      } @else {
+        <span>Load labels</span>
+      }
+    </button>
+
+    <button mat-stroked-button type="button" (click)="addComparisonSet()">
+      <span>Compare</span>
+    </button>
+
+    <button mat-flat-button type="submit">
+      @if (loadingStats()) {
+        <mat-spinner diameter="18"></mat-spinner>
+      } @else {
+        <span>Apply filters</span>
+      }
+    </button>
+  </div>
+</form>

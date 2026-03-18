@@ -1,0 +1,22 @@
+@use '@angular/material' as mat;
+@use 'tailwindcss';
+
+html {
+  color-scheme: light;
+  @include mat.theme(
+      (
+        color: mat.$violet-palette,
+        typography: Roboto,
+        density: 0,
+      )
+  );
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+

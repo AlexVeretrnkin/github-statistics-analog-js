@@ -1,12 +1,11 @@
 import { Component } from '@angular/core';
-
-import { AnalogWelcome } from './analog-welcome';
+import {Main} from "../components/main/main";
 
 @Component({
-  selector: 'app-home',
-  imports: [AnalogWelcome],
-  template: `
-     <app-analog-welcome/>
-  `,
+  standalone: true,
+  template: `<app-main />`,
+  imports: [
+    Main
+  ]
 })
-export default class Home {}
+export default class HomePageComponent {}

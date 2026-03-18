@@ -1,0 +1,64 @@
+<section class="dashboard">
+  <header class="hero">
+    <p class="eyebrow">AnalogJS Research Dashboard</p>
+    <h1>GitHub issue dynamics by month</h1>
+    <p class="lead">
+      Explore repository issue trends, compare open and closed counts, and focus the
+      analysis by repository labels.
+    </p>
+  </header>
+
+  <mat-card appearance="outlined" class="panel p-6">
+    <div class="panel-header">
+      <h2>Filters</h2>
+      <p>Choose repository parameters and load label options for the multi-select.</p>
+    </div>
+
+    <app-issues-filters
+      [initialFilters]="filters()"
+      [labelOptions]="labelOptions()"
+      [loadingLabels]="loadingLabels()"
+      [loadingStats]="loadingStats()"
+      (applyFilters)="applyFilters($event)"
+      (loadLabels)="loadLabels($event)"
+    />
+  </mat-card>
+
+  @if (loadingStats()) {
+    <mat-progress-bar mode="indeterminate" class="loading-bar" />
+  }
+
+  <div class="content-grid">
+    <mat-card appearance="outlined" class="panel chart-panel p-6">
+      <div class="panel-header">
+        <h2>Monthly chart</h2>
+        @if (repository(); as currentRepository) {
+          <p>{{ currentRepository.owner }}/{{ currentRepository.name }}</p>
+        } @else {
+          <p>Apply filters to fetch statistics.</p>
+        }
+      </div>
+
+      <app-selected-labels [sets]="selectedLabelSets()" class="labels-summary" />
+
+      @defer (on viewport) {
+        <app-issues-chart [series]="series()" />
+      } @placeholder {
+        <div class="chart-loading-state">
+          The chart is loaded only in the browser.
+        </div>
+      }
+    </mat-card>
+
+    <mat-card appearance="outlined" class="panel table-panel p-6">
+      <div class="panel-header">
+        <h2>Monthly table</h2>
+        <p>Monthly totals for each selected comparison set.</p>
+      </div>
+
+      <app-selected-labels [sets]="selectedLabelSets()" class="labels-summary" />
+
+      <app-issues-table [series]="series()" />
+    </mat-card>
+  </div>
+</section>

@@ -1,0 +1,82 @@
+.filters-form {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.comparison-sets,
+.filters-actions {
+  grid-column: 1 / -1;
+}
+
+.comparison-sets {
+  display: grid;
+  gap: 1rem;
+}
+
+.comparison-set {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid rgba(25, 60, 184, 0.12);
+  border-radius: 1.25rem;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.comparison-set__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+}
+
+.comparison-set__eyebrow {
+  margin: 0 0 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #6a7689;
+}
+
+.comparison-set__header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.comparison-set__remove {
+  white-space: nowrap;
+}
+
+.labels-field {
+  width: 100%;
+}
+
+.filters-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.filters-actions button {
+  min-width: 10rem;
+}
+
+.mat-mdc-chip-grid {
+  min-height: 3.5rem;
+}
+
+.mat-mdc-chip-row {
+  margin: 0.2rem 0.25rem 0.2rem 0;
+}
+
+.option-description {
+  color: color-mix(in srgb, currentColor 60%, transparent);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 720px) {
+  .filters-form {
+    grid-template-columns: 1fr;
+  }
+}

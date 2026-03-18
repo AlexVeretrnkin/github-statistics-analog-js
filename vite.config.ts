@@ -13,8 +13,10 @@ export default defineConfig(({ mode }) => ({
     mainFields: ['module'],
   },
   plugins: [
-    analog(),
-    tailwindcss()
+    analog({
+      inlineStylesExtension: 'scss',
+    }),
+    tailwindcss(),
   ],
   test: {
     globals: true,

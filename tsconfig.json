@@ -30,5 +30,11 @@
   },
   "references": [
     { "path": "tsconfig.spec.json" }
+  ],
+  "plugins": [
+    {
+      "name": "@0no-co/graphqlsp",
+      "schema": "./schema.graphql"
+    }
   ]
 }

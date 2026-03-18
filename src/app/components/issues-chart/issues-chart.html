@@ -1,0 +1,14 @@
+@if (series().length) {
+  <div class="chart-shell">
+    <canvas
+      baseChart
+      [data]="chartData()"
+      [options]="chartOptions()"
+      [type]="'bar'"
+    ></canvas>
+  </div>
+} @else {
+  <div class="chart-empty">
+    Apply filters to render the monthly issue comparison chart.
+  </div>
+}

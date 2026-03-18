@@ -1,0 +1,16 @@
+.chart-shell {
+  height: 22rem;
+}
+
+.chart-empty {
+  min-height: 22rem;
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(25, 60, 184, 0.25);
+  border-radius: 1.5rem;
+  background:
+    linear-gradient(135deg, rgba(25, 60, 184, 0.06), rgba(244, 185, 66, 0.06));
+  color: #405267;
+  text-align: center;
+  padding: 1.5rem;
+}

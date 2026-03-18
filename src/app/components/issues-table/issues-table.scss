@@ -1,0 +1,53 @@
+.table-shell {
+  overflow: auto;
+  border: 1px solid rgba(25, 60, 184, 0.12);
+  border-radius: 1.25rem;
+  background: white;
+}
+
+.issues-table {
+  width: 100%;
+}
+
+.issues-table th {
+  font-weight: 700;
+}
+
+.issues-table td,
+.issues-table th {
+  white-space: nowrap;
+}
+
+.series-heading {
+  --series-accent: #8da2c0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.series-column-heading {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.series-heading::before {
+  content: '';
+  width: 0.72rem;
+  height: 0.72rem;
+  border-radius: 999px;
+  background: var(--series-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--series-accent) 16%, white);
+}
+
+.series-metric {
+  font-size: 0.8rem;
+  color: #6a7689;
+}
+
+.table-empty {
+  padding: 1.25rem;
+  border: 1px dashed rgba(25, 60, 184, 0.2);
+  border-radius: 1.25rem;
+  color: #405267;
+  text-align: center;
+}

@@ -1,0 +1,248 @@
+import { CommonModule } from '@angular/common';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
+import {
+  FormArray,
+  type FormControl,
+  type FormGroup,
+  NonNullableFormBuilder,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatButtonModule } from '@angular/material/button';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
+
+import {
+  type IssuesFilters,
+  type LabelComparisonSet,
+  type RepositoryLabel,
+} from '../../core/github-statistics.models';
+
+@Component({
+  selector: 'app-issues-filters',
+  standalone: true,
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    MatAutocompleteModule,
+    MatButtonModule,
+    MatChipsModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatProgressSpinnerModule,
+    MatSelectModule,
+  ],
+  templateUrl: './issues-filters.html',
+  styleUrl: './issues-filters.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class IssuesFiltersComponent {
+  readonly initialFilters = input.required<IssuesFilters>();
+  readonly labelOptions = input<RepositoryLabel[]>([]);
+  readonly loadingLabels = input(false);
+  readonly loadingStats = input(false);
+
+  readonly applyFilters = output<IssuesFilters>();
+  readonly loadLabels = output<{ owner: string; repo: string }>();
+
+  private readonly formBuilder = inject(NonNullableFormBuilder);
+  protected readonly labelSearch = signal<Record<string, string>>({});
+
+  protected readonly monthOptions = getMonthOptions(84);
+  protected readonly filtersForm = this.formBuilder.group({
+    owner: this.formBuilder.control('', Validators.required),
+    repo: this.formBuilder.control('', Validators.required),
+    from: this.formBuilder.control('', Validators.required),
+    to: this.formBuilder.control('', Validators.required),
+    comparisonSets: this.formBuilder.array([createComparisonSetGroup(this.formBuilder)]),
+  });
+
+  constructor() {
+    effect(() => {
+      const filters = this.initialFilters();
+
+      this.filtersForm.patchValue(
+        {
+          owner: filters.owner,
+          repo: filters.repo,
+          from: filters.from,
+          to: filters.to,
+        },
+        { emitEvent: false },
+      );
+
+      this.filtersForm.setControl(
+        'comparisonSets',
+        this.formBuilder.array(
+          filters.comparisonSets.map((comparisonSet) =>
+            createComparisonSetGroup(this.formBuilder, comparisonSet),
+          ),
+        ),
+      );
+    });
+  }
+
+  protected submit(): void {
+    if (this.filtersForm.invalid) {
+      this.filtersForm.markAllAsTouched();
+      return;
+    }
+
+    this.applyFilters.emit(this.filtersForm.getRawValue());
+  }
+
+  protected requestLabels(): void {
+    const { owner, repo } = this.filtersForm.getRawValue();
+
+    if (!owner?.trim() || !repo?.trim()) {
+      this.filtersForm.controls.owner.markAsTouched();
+      this.filtersForm.controls.repo.markAsTouched();
+      return;
+    }
+
+    this.loadLabels.emit({
+      owner: owner.trim(),
+      repo: repo.trim(),
+    });
+  }
+
+  protected addComparisonSet(): void {
+    this.comparisonSets.push(createComparisonSetGroup(this.formBuilder));
+  }
+
+  protected removeComparisonSet(index: number): void {
+    if (this.comparisonSets.length === 1) {
+      return;
+    }
+
+    const comparisonSet = this.comparisonSets.at(index).getRawValue();
+
+    this.comparisonSets.removeAt(index);
+    this.updateLabelSearch(comparisonSet.id, '');
+  }
+
+  protected getLabelSearch(setId: string): string {
+    return this.labelSearch()[setId] ?? '';
+  }
+
+  protected updateLabelSearch(setId: string, value: string): void {
+    this.labelSearch.update((state) => ({
+      ...state,
+      [setId]: value,
+    }));
+  }
+
+  protected getFilteredLabelOptions(setIndex: number): RepositoryLabel[] {
+    const comparisonSet = this.comparisonSets.at(setIndex);
+    const setId = comparisonSet.controls.id.value;
+    const selectedLabels = new Set(comparisonSet.controls.labels.value);
+    const search = this.getLabelSearch(setId).trim().toLowerCase();
+
+    return this.labelOptions().filter((label) => {
+      if (selectedLabels.has(label.name)) {
+        return false;
+      }
+
+      if (!search) {
+        return true;
+      }
+
+      return (
+        label.name.toLowerCase().includes(search) ||
+        label.description?.toLowerCase().includes(search)
+      );
+    });
+  }
+
+  protected addLabel(setIndex: number, labelName: string): void {
+    const labelsControl = this.comparisonSets.at(setIndex).controls.labels;
+    const currentLabels = labelsControl.value;
+
+    if (currentLabels?.includes(labelName)) {
+      this.updateLabelSearch(this.comparisonSets.at(setIndex).controls.id.value, '');
+      return;
+    }
+
+    labelsControl.setValue([...currentLabels, labelName]);
+    this.updateLabelSearch(this.comparisonSets.at(setIndex).controls.id.value, '');
+  }
+
+  protected removeLabel(setIndex: number, labelName: string): void {
+    const labelsControl = this.comparisonSets.at(setIndex).controls.labels;
+
+    labelsControl.setValue(
+      labelsControl.value.filter((label) => label !== labelName),
+    );
+  }
+
+  protected getSetTitle(index: number): string {
+    return `Set ${index + 1}`;
+  }
+
+  protected readonly displayLabelName = (value: string | null): string => value ?? '';
+  protected readonly trackMonthOption = (_index: number, option: MonthOption) => option.value;
+  protected readonly trackLabelOption = (_index: number, label: RepositoryLabel) => label.id;
+  protected readonly trackComparisonSet = (_index: number, control: ComparisonSetGroup) =>
+    control.controls.id.value;
+
+  protected get comparisonSets(): FormArray<ComparisonSetGroup> {
+    return this.filtersForm.controls.comparisonSets;
+  }
+}
+
+type ComparisonSetGroup = FormGroup<{
+  id: FormControl<string>;
+  labels: FormControl<string[]>;
+}>;
+
+interface MonthOption {
+  value: string;
+  label: string;
+}
+
+function createComparisonSetGroup(
+  formBuilder: NonNullableFormBuilder,
+  comparisonSet?: LabelComparisonSet,
+): ComparisonSetGroup {
+  return formBuilder.group({
+    id: formBuilder.control(comparisonSet?.id ?? createComparisonSetId()),
+    labels: formBuilder.control(comparisonSet?.labels ?? []),
+  });
+}
+
+function getMonthOptions(count: number): MonthOption[] {
+  const now = new Date();
+  const options: MonthOption[] = [];
+
+  for (let index = 0; index < count; index += 1) {
+    const current = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - index, 1));
+    const value = `${current.getUTCFullYear()}-${String(current.getUTCMonth() + 1).padStart(2, '0')}`;
+    const label = new Intl.DateTimeFormat('en', {
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(current);
+
+    options.push({ value, label });
+  }
+
+  return options;
+}
+
+function createComparisonSetId(): string {
+  return `set-${Math.random().toString(36).slice(2, 10)}`;
+}

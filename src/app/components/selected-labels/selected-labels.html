@@ -1,0 +1,43 @@
+<div class="selected-labels">
+  <p class="selected-labels__title">Applied label sets</p>
+
+  @if (sets().length > 0) {
+    <div class="selected-labels__sets">
+      @for (set of sets(); track set.id) {
+        <section class="selected-labels__set" [style.--set-accent]="set.accentColor">
+          <div class="selected-labels__set-header">
+            <span class="selected-labels__set-marker"></span>
+            <div>
+              <p class="selected-labels__set-name">{{ set.name }}</p>
+              <p class="selected-labels__set-subtitle">
+                @if (set.labels.length > 0) {
+                  {{ set.labels.length }} labels selected
+                } @else {
+                  All labels
+                }
+              </p>
+            </div>
+          </div>
+
+          @if (set.labels.length > 0) {
+            <div class="selected-labels__list">
+              @for (label of set.labels; track label.id) {
+                <span
+                  class="selected-labels__chip"
+                  [style.--label-accent]="'#' + label.color"
+                  [attr.title]="label.description || label.name"
+                >
+                  {{ label.name }}
+                </span>
+              }
+            </div>
+          } @else {
+            <p class="selected-labels__empty">This set includes the full issue population.</p>
+          }
+        </section>
+      }
+    </div>
+  } @else {
+    <p class="selected-labels__empty">All labels are included in the current view.</p>
+  }
+</div>

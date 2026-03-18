@@ -1,0 +1,36 @@
+@if (series().length) {
+  <div class="table-shell">
+    <table mat-table [dataSource]="rows()" class="issues-table">
+      <ng-container matColumnDef="month">
+        <th mat-header-cell *matHeaderCellDef>Month</th>
+        <td mat-cell *matCellDef="let row">{{ row.month }}</td>
+      </ng-container>
+
+      @for (currentSeries of series(); track currentSeries.id) {
+        @for (metric of ['total', 'open', 'closed']; track metric) {
+          <ng-container [matColumnDef]="currentSeries.id + '-' + metric">
+          <th mat-header-cell *matHeaderCellDef>
+            <div class="series-column-heading">
+              <span
+                class="series-heading"
+                [style.--series-accent]="'#' + getSeriesColor(currentSeries.id + '-' + metric)"
+              >
+                {{ getSeriesName(currentSeries.id + '-' + metric) }}
+              </span>
+              <span class="series-metric">{{ getMetricLabel(currentSeries.id + '-' + metric) }}</span>
+            </div>
+          </th>
+          <td mat-cell *matCellDef="let row">{{ row.values[currentSeries.id + '-' + metric] }}</td>
+          </ng-container>
+        }
+      }
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns()"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns()"></tr>
+    </table>
+  </div>
+} @else {
+  <div class="table-empty">
+    No table data yet. Apply filters to fetch issue comparisons.
+  </div>
+}
