@@ -1,4 +1,11 @@
 @if (series().length) {
+  <div class="table-actions">
+    <button mat-stroked-button type="button" (click)="copyTableAsTsv()">Copy TSV</button>
+    <button mat-stroked-button type="button" (click)="downloadTableAsCsv()">
+      Download CSV
+    </button>
+  </div>
+
   <div class="table-shell">
     <table mat-table [dataSource]="rows()" class="issues-table">
       <ng-container matColumnDef="month">

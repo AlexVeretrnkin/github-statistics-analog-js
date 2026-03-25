@@ -1,3 +1,11 @@
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
 .table-shell {
   overflow: auto;
   border: 1px solid rgba(25, 60, 184, 0.12);

@@ -1,0 +1,74 @@
+@if (analysis(); as currentAnalysis) {
+  <div class="label-analysis">
+    <div class="label-analysis__summary">
+      <div class="label-analysis__metric">
+        <p class="label-analysis__metric-label">Technical debt labels</p>
+        <p class="label-analysis__metric-value">{{ technicalDebtLabels().length }}</p>
+      </div>
+
+      <div class="label-analysis__meta">
+        <p>Provider: {{ currentAnalysis.provider }}</p>
+        <p>Model: {{ currentAnalysis.model }}</p>
+        <p>Prompt version: {{ currentAnalysis.prompt_version }}</p>
+      </div>
+    </div>
+
+    @if (hasEmergentCategories()) {
+      <section class="label-analysis__emergent">
+        <h3>Emergent categories</h3>
+        <div class="label-analysis__emergent-list">
+          @for (category of currentAnalysis.emergent_categories; track category.name) {
+            <article class="label-analysis__emergent-card">
+              <p class="label-analysis__emergent-name">{{ category.name }}</p>
+              <p class="label-analysis__emergent-reason">{{ category.reason }}</p>
+            </article>
+          }
+        </div>
+      </section>
+    }
+
+    <div class="label-analysis__table">
+      <div class="label-analysis__row label-analysis__row--head">
+        <span>Label</span>
+        <span>Primary</span>
+        <span>Secondary</span>
+        <span>Suggested</span>
+        <span>Confidence</span>
+        <span>Reason</span>
+      </div>
+
+      @for (item of currentAnalysis.labels; track trackLabelAnalysis($index, item)) {
+        <div class="label-analysis__row" [class.label-analysis__row--debt]="item.primary_category === 'technical_debt'">
+          <span class="label-analysis__label">{{ item.label_name }}</span>
+          <span>
+            <span class="label-analysis__badge">{{ item.primary_category }}</span>
+          </span>
+          <span class="label-analysis__secondary">
+            @if (item.secondary_categories.length > 0) {
+              @for (category of item.secondary_categories; track category) {
+                <span class="label-analysis__badge label-analysis__badge--secondary">
+                  {{ category }}
+                </span>
+              }
+            } @else {
+              <span class="label-analysis__muted">-</span>
+            }
+          </span>
+          <span>
+            @if (item.suggested_category) {
+              {{ item.suggested_category }}
+            } @else {
+              <span class="label-analysis__muted">-</span>
+            }
+          </span>
+          <span>{{ item.confidence | number: '1.2-2' }}</span>
+          <span class="label-analysis__reason">{{ item.reason }}</span>
+        </div>
+      }
+    </div>
+  </div>
+} @else {
+  <div class="label-analysis__empty">
+    Run label analysis to identify technical debt and other emergent research categories.
+  </div>
+}

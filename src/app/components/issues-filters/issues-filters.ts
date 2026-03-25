@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   effect,
   inject,
   input,
@@ -26,8 +27,10 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 
 import {
+  type CategoryPresetOption,
   type IssuesFilters,
   type LabelComparisonSet,
+  type LabelResearchCategory,
   type RepositoryLabel,
 } from '../../core/github-statistics.models';
 
@@ -51,12 +54,14 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class IssuesFiltersComponent {
+  readonly categoryPresets = input<CategoryPresetOption[]>([]);
   readonly initialFilters = input.required<IssuesFilters>();
   readonly labelOptions = input<RepositoryLabel[]>([]);
   readonly loadingLabels = input(false);
   readonly loadingStats = input(false);
 
   readonly applyFilters = output<IssuesFilters>();
+  readonly addCategoryPreset = output<CategoryPresetOption>();
   readonly loadLabels = output<{ owner: string; repo: string }>();
 
   private readonly formBuilder = inject(NonNullableFormBuilder);
@@ -102,7 +107,15 @@ export class IssuesFiltersComponent {
       return;
     }
 
-    this.applyFilters.emit(this.filtersForm.getRawValue());
+    const rawValue = this.filtersForm.getRawValue();
+
+    this.applyFilters.emit({
+      ...rawValue,
+      comparisonSets: rawValue.comparisonSets.map((comparisonSet) => ({
+        ...comparisonSet,
+        category: comparisonSet.category ?? undefined,
+      })),
+    });
   }
 
   protected requestLabels(): void {
@@ -122,6 +135,16 @@ export class IssuesFiltersComponent {
 
   protected addComparisonSet(): void {
     this.comparisonSets.push(createComparisonSetGroup(this.formBuilder));
+  }
+
+  protected selectCategoryPreset(category: LabelResearchCategory): void {
+    const preset = this.categoryPresets().find((item) => item.category === category);
+
+    if (!preset) {
+      return;
+    }
+
+    this.addCategoryPreset.emit(preset);
   }
 
   protected removeComparisonSet(index: number): void {
@@ -190,11 +213,25 @@ export class IssuesFiltersComponent {
   }
 
   protected getSetTitle(index: number): string {
-    return `Set ${index + 1}`;
+    return this.comparisonSets.at(index).controls.name.value || `Set ${index + 1}`;
   }
 
+  protected readonly availableCategoryPresets = computed(() => {
+    const usedCategories = new Set(
+      this.comparisonSets.controls
+        .map((control) => control.controls.category.value)
+        .filter((value): value is NonNullable<typeof value> => Boolean(value)),
+    );
+
+    return this.categoryPresets().filter((preset) => !usedCategories.has(preset.category));
+  });
+
   protected readonly displayLabelName = (value: string | null): string => value ?? '';
+  protected readonly displayCategoryPreset = (value: LabelResearchCategory | null): string =>
+    this.categoryPresets().find((preset) => preset.category === value)?.name ?? '';
   protected readonly trackMonthOption = (_index: number, option: MonthOption) => option.value;
+  protected readonly trackCategoryPreset = (_index: number, preset: CategoryPresetOption) =>
+    preset.category;
   protected readonly trackLabelOption = (_index: number, label: RepositoryLabel) => label.id;
   protected readonly trackComparisonSet = (_index: number, control: ComparisonSetGroup) =>
     control.controls.id.value;
@@ -205,8 +242,11 @@ export class IssuesFiltersComponent {
 }
 
 type ComparisonSetGroup = FormGroup<{
+  category: FormControl<LabelResearchCategory | null>;
   id: FormControl<string>;
   labels: FormControl<string[]>;
+  name: FormControl<string>;
+  source: FormControl<'analysis-category' | 'manual'>;
 }>;
 
 interface MonthOption {
@@ -219,8 +259,11 @@ function createComparisonSetGroup(
   comparisonSet?: LabelComparisonSet,
 ): ComparisonSetGroup {
   return formBuilder.group({
+    category: formBuilder.control(comparisonSet?.category ?? null),
     id: formBuilder.control(comparisonSet?.id ?? createComparisonSetId()),
     labels: formBuilder.control(comparisonSet?.labels ?? []),
+    name: formBuilder.control(comparisonSet?.name ?? ''),
+    source: formBuilder.control(comparisonSet?.source ?? 'manual'),
   });
 }
 

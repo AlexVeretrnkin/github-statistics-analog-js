@@ -5,6 +5,15 @@ import type { TypedDocumentNode } from '@graphql-typed-document-node/core';
 import { getGitHubConfig, getRequiredGitHubToken } from '../../config/github';
 import { repositoryIssuesDocument } from '../../graphql/github/issues';
 import { repositoryLabelsDocument } from '../../graphql/github/labels';
+import {
+  buildIssuesCacheKey,
+  buildLabelsCacheKey,
+  readIssuesCache,
+  readLabelsCache,
+  saveRepositoryArchiveEntry,
+  writeIssuesCache,
+  writeLabelsCache,
+} from '../lib/cache/github-cache';
 import { type FetchRepositoryIssuesInput } from '../validation/issues-query';
 import { type FetchRepositoryLabelsInput } from '../validation/labels-query';
 
@@ -85,6 +94,35 @@ export async function fetchRepositoryIssues({
   to,
   labels,
 }: FetchRepositoryIssuesInput) {
+  const cacheKey = buildIssuesCacheKey({
+    owner,
+    repo,
+    from,
+    to,
+    labels,
+  });
+  const cachedResponse = readIssuesCache<{
+    from: string;
+    to: string;
+    repository: {
+      id: string;
+      name: string;
+      owner: string;
+    };
+    labels: string[];
+    months: MonthlyIssueStats[];
+  }>(cacheKey);
+
+  if (cachedResponse) {
+    saveRepositoryArchiveEntry({
+      owner,
+      repo,
+      repositoryId: cachedResponse.repository.id,
+    });
+
+    return cachedResponse;
+  }
+
   const monthRanges = getMonthRanges(from, to);
   const labelFilter = buildLabelFilter(labels ?? []);
 
@@ -141,7 +179,7 @@ export async function fetchRepositoryIssues({
     });
   }
 
-  return {
+  const response = {
     from,
     to,
     repository: {
@@ -157,6 +195,16 @@ export async function fetchRepositoryIssues({
       closed,
     })),
   };
+
+  saveRepositoryArchiveEntry({
+    owner,
+    repo,
+    repositoryId: response.repository.id,
+  });
+
+  writeIssuesCache(cacheKey, response);
+
+  return response;
 }
 
 const getMonthRange = (month: string): MonthRange => {
@@ -268,6 +316,26 @@ export async function fetchRepositoryLabels({
   owner,
   repo,
 }: FetchRepositoryLabelsInput) {
+  const cacheKey = buildLabelsCacheKey({ owner, repo });
+  const cachedResponse = readLabelsCache<{
+    repository: {
+      id: string;
+      name: string;
+      owner: string;
+    };
+    totalCount: number;
+    labels: Array<{
+      id: string;
+      name: string;
+      color: string;
+      description: string | null;
+    }>;
+  }>(cacheKey);
+
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+
   const labels: Array<{
     id: string;
     name: string;
@@ -349,7 +417,7 @@ export async function fetchRepositoryLabels({
     });
   }
 
-  return {
+  const response = {
     repository: {
       id: repository.id,
       name: repository.name,
@@ -358,4 +426,8 @@ export async function fetchRepositoryLabels({
     totalCount,
     labels,
   };
+
+  writeLabelsCache(cacheKey, response);
+
+  return response;
 }

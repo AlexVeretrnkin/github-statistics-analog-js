@@ -110,6 +110,22 @@
       <span>Compare</span>
     </button>
 
+    @if (availableCategoryPresets().length > 0) {
+      <mat-form-field appearance="outline" class="category-preset-field">
+        <mat-label>Add analyzed category</mat-label>
+        <mat-select (selectionChange)="selectCategoryPreset($event.value)">
+          @for (
+            preset of availableCategoryPresets();
+            track trackCategoryPreset($index, preset)
+          ) {
+            <mat-option [value]="preset.category">
+              {{ preset.name }} · {{ preset.labelCount }} labels
+            </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
+
     <button mat-flat-button type="submit">
       @if (loadingStats()) {
         <mat-spinner diameter="18"></mat-spinner>

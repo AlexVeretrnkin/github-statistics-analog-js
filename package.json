@@ -7,13 +7,13 @@
   },
   "scripts": {
     "ng": "ng",
-    "dev": "vite",
+    "dev": "NODE_OPTIONS=--experimental-sqlite vite",
     "start": "pnpm run dev",
-    "build": "vite build",
-    "watch": "vite build --watch",
+    "build": "NODE_OPTIONS=--experimental-sqlite vite build",
+    "watch": "NODE_OPTIONS=--experimental-sqlite vite build --watch",
     "graphql:codegen": "node --env-file=.env ./node_modules/@graphql-codegen/cli/cjs/bin.js --config codegen.ts",
-    "test": "vitest",
-    "preview": "node dist/analog/server/index.mjs"
+    "test": "NODE_OPTIONS=--experimental-sqlite vitest",
+    "preview": "node --experimental-sqlite dist/analog/server/index.mjs"
   },
   "private": true,
   "dependencies": {
@@ -29,12 +29,14 @@
     "@angular/platform-browser": "^21.0.0",
     "@angular/platform-server": "^21.0.0",
     "@angular/router": "^21.0.0",
+    "@google/genai": "^1.29.0",
     "@graphql-typed-document-node/core": "^3.2.0",
     "@tailwindcss/postcss": "^4.2.1",
     "@tailwindcss/vite": "^4.1.4",
     "chart.js": "^4.4.9",
     "front-matter": "^4.0.2",
     "h3": "^1.13.0",
+    "html2canvas": "^1.4.1",
     "marked": "^15.0.7",
     "marked-gfm-heading-id": "^4.1.1",
     "marked-highlight": "^2.2.1",

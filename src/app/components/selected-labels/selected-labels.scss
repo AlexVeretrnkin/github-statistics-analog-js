@@ -23,12 +23,8 @@
   gap: 0.75rem;
   padding: 0.9rem 1rem;
   border-radius: 1.15rem;
-  border: 1px solid color-mix(in srgb, var(--set-accent) 20%, white);
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--set-accent) 8%, white),
-    rgba(255, 255, 255, 0.88)
-  );
+  border: 1px solid var(--set-accent);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(247, 249, 255, 0.94));
 }
 
 .selected-labels__set-header {
@@ -43,7 +39,7 @@
   flex: none;
   border-radius: 999px;
   background: var(--set-accent);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--set-accent) 18%, white);
+  box-shadow: 0 0 0 4px rgba(25, 60, 184, 0.12);
 }
 
 .selected-labels__set-name {
@@ -72,14 +68,9 @@
   min-height: 2rem;
   padding: 0.35rem 0.8rem;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--label-accent) 42%, white);
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--label-accent) 22%, white),
-      color-mix(in srgb, var(--label-accent) 10%, white)
-    );
-  color: color-mix(in srgb, var(--label-accent) 56%, #172338);
+  border: 1px solid var(--label-accent);
+  background: rgba(255, 255, 255, 0.94);
+  color: #172338;
   font-size: 0.92rem;
   font-weight: 700;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);

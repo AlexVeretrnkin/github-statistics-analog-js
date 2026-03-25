@@ -1,7 +1,17 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatExpansionModule } from '@angular/material/expansion';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
 import {
@@ -9,15 +19,19 @@ import {
   type IssuesTimeseriesRequest,
 } from '../../core/github-statistics.service';
 import {
+  type CategoryPresetOption,
   type ComparisonSeries,
   type IssuesFilters,
   type IssuesTimeseriesResponse,
   type LabelComparisonSet,
+  type LabelResearchCategory,
+  type RepositoryLabelAnalysisResponse,
   type RepositoryLabel,
 } from '../../core/github-statistics.models';
 import { IssuesChartComponent } from '../issues-chart/issues-chart';
 import { IssuesFiltersComponent } from '../issues-filters/issues-filters';
 import { IssuesTableComponent } from '../issues-table/issues-table';
+import { LabelAnalysisComponent } from '../label-analysis/label-analysis';
 import {
   SelectedLabelsComponent,
   type SelectedLabelSetView,
@@ -28,11 +42,15 @@ import {
   standalone: true,
   imports: [
     CommonModule,
+    MatButtonModule,
     MatCardModule,
+    MatExpansionModule,
     MatProgressBarModule,
+    RouterLink,
     IssuesFiltersComponent,
     IssuesChartComponent,
     IssuesTableComponent,
+    LabelAnalysisComponent,
     SelectedLabelsComponent,
   ],
   templateUrl: './main.html',
@@ -40,9 +58,13 @@ import {
 })
 export class Main {
   private readonly githubStatisticsService = inject(GithubStatisticsService);
+  private readonly chartPanel = viewChild<ElementRef<HTMLElement>>('chartPanel');
 
   protected readonly labelOptions = signal<RepositoryLabel[]>([]);
+  protected readonly labelAnalysis = signal<RepositoryLabelAnalysisResponse | null>(null);
+  protected readonly loadingLabelAnalysis = signal(false);
   protected readonly loadingLabels = signal(false);
+  protected readonly savingChartPanel = signal(false);
   protected readonly loadingStats = signal(false);
   protected readonly comparisonSeries = signal<ComparisonSeries[]>([]);
   protected readonly statistics = signal<IssuesTimeseriesResponse | null>(null);
@@ -50,10 +72,13 @@ export class Main {
 
   protected readonly repository = computed(() => this.statistics()?.repository ?? null);
   protected readonly series = computed(() => this.comparisonSeries());
+  protected readonly categoryPresets = computed<CategoryPresetOption[]>(() =>
+    buildCategoryPresets(this.labelAnalysis()),
+  );
   protected readonly selectedLabelSets = computed<SelectedLabelSetView[]>(() =>
     this.filters().comparisonSets.map((comparisonSet, index) => ({
       id: comparisonSet.id,
-      name: getComparisonSetName(index),
+      name: getComparisonSetName(index, comparisonSet),
       accentColor: getComparisonSetColor(index),
       labels: mapLabelsForComparisonSet(comparisonSet, this.labelOptions()),
     })),
@@ -107,6 +132,7 @@ export class Main {
 
   protected loadLabels(params: { owner: string; repo: string }): void {
     this.loadingLabels.set(true);
+    this.labelAnalysis.set(null);
 
     this.githubStatisticsService.getRepositoryLabels(params.owner, params.repo).subscribe({
       next: (response) => {
@@ -119,6 +145,67 @@ export class Main {
         this.loadingLabels.set(false);
       },
     });
+  }
+
+  protected analyzeLabels(refresh = false): void {
+    const { owner, repo } = this.filters();
+
+    this.loadingLabelAnalysis.set(true);
+
+    this.githubStatisticsService.analyzeRepositoryLabels(owner, repo, refresh).subscribe({
+      next: (response) => {
+        this.labelAnalysis.set(response);
+        this.loadingLabelAnalysis.set(false);
+      },
+      error: (error) => {
+        console.error('Failed to analyze labels', error);
+        this.labelAnalysis.set(null);
+        this.loadingLabelAnalysis.set(false);
+      },
+    });
+  }
+
+  protected addCategoryPreset(preset: CategoryPresetOption): void {
+    this.filters.update((currentFilters) => ({
+      ...currentFilters,
+      comparisonSets: [
+        ...currentFilters.comparisonSets,
+        {
+          category: preset.category,
+          id: createComparisonSetId(),
+          labels: preset.labels,
+          name: preset.name,
+          source: 'analysis-category',
+        },
+      ],
+    }));
+  }
+
+  protected async saveChartPanelAsPng(): Promise<void> {
+    const chartPanel = this.chartPanel()?.nativeElement;
+
+    if (!chartPanel) {
+      return;
+    }
+
+    this.savingChartPanel.set(true);
+
+    try {
+      const { default: html2canvas } = await import('html2canvas');
+      const canvas = await html2canvas(chartPanel, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+      });
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+
+      link.href = dataUrl;
+      link.download = 'issue-comparison-chart-panel.png';
+      link.click();
+    } finally {
+      this.savingChartPanel.set(false);
+    }
   }
 
 }
@@ -136,7 +223,7 @@ function mapResponseToSeries({
 }): ComparisonSeries {
   return {
     id: comparisonSet.id,
-    name: getComparisonSetName(index),
+    name: getComparisonSetName(index, comparisonSet),
     color: getComparisonSetColor(index).replace('#', ''),
     labels: mapLabelsForComparisonSet(comparisonSet, labelOptions),
     months: response.months,
@@ -155,8 +242,11 @@ function getInitialFilters(): IssuesFilters {
     to: currentMonth,
     comparisonSets: [
       {
+        category: undefined,
         id: createComparisonSetId(),
         labels: [],
+        name: 'All issues',
+        source: 'manual',
       },
     ],
   };
@@ -197,8 +287,8 @@ function mapLabelsForComparisonSet(
   });
 }
 
-function getComparisonSetName(index: number): string {
-  return `Set ${index + 1}`;
+function getComparisonSetName(index: number, comparisonSet: LabelComparisonSet): string {
+  return comparisonSet.name || `Set ${index + 1}`;
 }
 
 function getComparisonSetColor(index: number): string {
@@ -210,3 +300,45 @@ function createComparisonSetId(): string {
 }
 
 const COMPARISON_SET_COLORS = ['#193cb8', '#d97706', '#0f766e', '#b91c1c', '#7c3aed'];
+
+function buildCategoryPresets(
+  analysis: RepositoryLabelAnalysisResponse | null,
+): CategoryPresetOption[] {
+  if (!analysis) {
+    return [];
+  }
+
+  const categoryMap = new Map<LabelResearchCategory, string[]>();
+
+  for (const item of analysis.labels) {
+    const existingLabels = categoryMap.get(item.primary_category) ?? [];
+    existingLabels.push(item.label_name);
+    categoryMap.set(item.primary_category, existingLabels);
+  }
+
+  return [...categoryMap.entries()]
+    .map(([category, labels]) => ({
+      category,
+      labelCount: labels.length,
+      labels: [...new Set(labels)],
+      name: formatCategoryName(category),
+    }))
+    .sort((left, right) => {
+      if (left.category === 'technical_debt') {
+        return -1;
+      }
+
+      if (right.category === 'technical_debt') {
+        return 1;
+      }
+
+      return right.labelCount - left.labelCount || left.name.localeCompare(right.name);
+    });
+}
+
+function formatCategoryName(category: LabelResearchCategory): string {
+  return category
+    .split('_')
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(' ');
+}

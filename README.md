@@ -12,11 +12,21 @@ Create a `.env` file with:
 GITHUB_TOKEN=ghp_your_token
 ```
 
-Optional variables for GraphQL DX:
+Optional variables:
 
 ```bash
 # Optional: use a previously downloaded schema snapshot instead of hitting GitHub directly.
 GITHUB_GRAPHQL_SCHEMA_PATH=./schema/github.graphql
+
+# Optional: SQLite cache location and TTL values (defaults to 10 days).
+GITHUB_CACHE_DB_PATH=.data/github-cache.sqlite
+GITHUB_ISSUES_CACHE_TTL_MS=864000000
+GITHUB_LABELS_CACHE_TTL_MS=864000000
+
+# Optional Gemini label analysis settings.
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-2.5-flash
+GEMINI_LABEL_ANALYSIS_CACHE_TTL_MS=2592000000
 ```
 
 Environment variables are read through a shared config module, so the same values are used by both the Analog server route and GraphQL code generation.
@@ -38,16 +48,34 @@ Run `npm run test` to run unit tests with [Vitest](https://vitest.dev).
 The project exposes an Analog server route at `/api/v1/issues` that proxies requests to the GitHub GraphQL API. Example:
 
 ```text
-/api/v1/issues?owner=analogjs&repo=analog&first=10&states=OPEN
+/api/v1/issues?owner=facebook&repo=react&from=2025-01&to=2025-12&labels=bug,good%20first%20issue
 ```
 
 Supported query params:
 
 - `owner` required
 - `repo` required
-- `first` optional, 1-100, defaults to `20`
-- `states` optional, comma-separated `OPEN,CLOSED`, defaults to `OPEN`
-- `after` optional cursor for pagination
+- `from` required, `YYYY-MM`
+- `to` required, `YYYY-MM`
+- `labels` optional, comma-separated list interpreted with `OR` semantics
+
+GitHub API responses are cached in a local SQLite database by default:
+
+- the cache uses Node's built-in `node:sqlite` module, so no external SQLite driver is required
+- database path defaults to `.data/github-cache.sqlite`
+- `issues` responses use a default TTL of 10 days
+- `labels` responses use a default TTL of 10 days
+- repeated requests with the same normalized parameters are served from SQLite until the TTL expires
+
+## Gemini Label Analysis
+
+The project also exposes `/api/v1/labels/analyze?owner=...&repo=...` for research-oriented label categorization.
+
+- the route calls the Gemini API with JSON-schema-based structured output
+- `technical_debt` is treated as a predefined research category
+- the model can still suggest emergent categories beyond the predefined list
+- results are cached in the same SQLite database, with a default TTL of 30 days
+- use `refresh=true` to force re-analysis when needed
 
 GraphQL developer tooling:
 

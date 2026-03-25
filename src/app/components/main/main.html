@@ -6,6 +6,7 @@
       Explore repository issue trends, compare open and closed counts, and focus the
       analysis by repository labels.
     </p>
+    <a routerLink="/repositories" class="archive-link">Browse analyzed repositories</a>
   </header>
 
   <mat-card appearance="outlined" class="panel p-6">
@@ -15,10 +16,12 @@
     </div>
 
     <app-issues-filters
+      [categoryPresets]="categoryPresets()"
       [initialFilters]="filters()"
       [labelOptions]="labelOptions()"
       [loadingLabels]="loadingLabels()"
       [loadingStats]="loadingStats()"
+      (addCategoryPreset)="addCategoryPreset($event)"
       (applyFilters)="applyFilters($event)"
       (loadLabels)="loadLabels($event)"
     />
@@ -28,26 +31,78 @@
     <mat-progress-bar mode="indeterminate" class="loading-bar" />
   }
 
+  <mat-card appearance="outlined" class="panel p-6">
+    <mat-accordion class="analysis-accordion">
+      <mat-expansion-panel [expanded]="loadingLabelAnalysis() || !!labelAnalysis()">
+        <mat-expansion-panel-header>
+          <mat-panel-title>Label research analysis</mat-panel-title>
+          <mat-panel-description>
+            Use Gemini to detect technical debt labels and emergent taxonomy categories.
+          </mat-panel-description>
+        </mat-expansion-panel-header>
+
+        <div class="analysis-panel-content">
+          <div class="panel-header panel-header--actions">
+            <div>
+              <h2>Label research analysis</h2>
+              <p>
+                Use Gemini to detect technical debt labels and emergent taxonomy
+                categories.
+              </p>
+            </div>
+
+            <div class="analysis-actions">
+              <button mat-stroked-button type="button" (click)="analyzeLabels()">
+                Analyze labels
+              </button>
+              <button mat-flat-button type="button" (click)="analyzeLabels(true)">
+                Refresh analysis
+              </button>
+            </div>
+          </div>
+
+          @if (loadingLabelAnalysis()) {
+            <mat-progress-bar mode="indeterminate" class="loading-bar" />
+          }
+
+          <app-label-analysis [analysis]="labelAnalysis()" />
+        </div>
+      </mat-expansion-panel>
+    </mat-accordion>
+  </mat-card>
+
   <div class="content-grid">
-    <mat-card appearance="outlined" class="panel chart-panel p-6">
-      <div class="panel-header">
-        <h2>Monthly chart</h2>
-        @if (repository(); as currentRepository) {
-          <p>{{ currentRepository.owner }}/{{ currentRepository.name }}</p>
-        } @else {
-          <p>Apply filters to fetch statistics.</p>
-        }
+    <mat-card appearance="outlined" class="panel chart-panel">
+      <div class="chart-card-actions pr-6 pt-6">
+        <button mat-stroked-button type="button" (click)="saveChartPanelAsPng()">
+          @if (savingChartPanel()) {
+            Saving PNG...
+          } @else {
+            Save panel as PNG
+          }
+        </button>
       </div>
 
-      <app-selected-labels [sets]="selectedLabelSets()" class="labels-summary" />
-
-      @defer (on viewport) {
-        <app-issues-chart [series]="series()" />
-      } @placeholder {
-        <div class="chart-loading-state">
-          The chart is loaded only in the browser.
+      <div #chartPanel class="chart-panel-export">
+        <div class="panel-header">
+          <h2>Monthly chart</h2>
+          @if (repository(); as currentRepository) {
+            <p>{{ currentRepository.owner }}/{{ currentRepository.name }}</p>
+          } @else {
+            <p>Apply filters to fetch statistics.</p>
+          }
         </div>
-      }
+
+        <app-selected-labels [sets]="selectedLabelSets()" class="labels-summary" />
+
+        @defer (on viewport) {
+          <app-issues-chart [series]="series()" />
+        } @placeholder {
+          <div class="chart-loading-state">
+            The chart is loaded only in the browser.
+          </div>
+        }
+      </div>
     </mat-card>
 
     <mat-card appearance="outlined" class="panel table-panel p-6">
