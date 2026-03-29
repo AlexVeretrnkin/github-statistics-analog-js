@@ -1,14 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
-import { type RepositoryLabel } from '../../core/github-statistics.models';
-
-export interface SelectedLabelSetView {
-  id: string;
-  name: string;
-  accentColor: string;
-  labels: RepositoryLabel[];
-}
+import { type SelectedLabelSetView } from '../../core/github-statistics.models';
 
 @Component({
   selector: 'app-selected-labels',

@@ -1,0 +1,58 @@
+<section class="analysis-page">
+  <a routerLink="/repositories" class="analysis-page__back">← Back to analyzed repositories</a>
+
+  @if (analysis(); as currentAnalysis) {
+    <header class="analysis-page__hero">
+      <p class="analysis-page__eyebrow">Repository Analysis</p>
+      <h1>{{ currentAnalysis.repository.owner }}/{{ currentAnalysis.repository.name }}</h1>
+      <p class="analysis-page__lead">
+        Grouped label analysis with a focus on technical debt and adjacent categories.
+      </p>
+    </header>
+
+    <mat-card appearance="outlined" class="analysis-page__summary p-4">
+      <p>Provider: {{ currentAnalysis.provider }}</p>
+      <p>Model: {{ currentAnalysis.model }}</p>
+      <p>Prompt version: {{ currentAnalysis.prompt_version }}</p>
+    </mat-card>
+
+    <mat-accordion class="analysis-page__accordion" multi>
+      @for (group of groupedCategories(); track group.category) {
+        <mat-expansion-panel
+          class="analysis-page__panel"
+          [expanded]="group.category === 'technical_debt'"
+        >
+          <mat-expansion-panel-header>
+            <mat-panel-title>{{ group.category }}</mat-panel-title>
+            <mat-panel-description>{{ group.items.length }} labels</mat-panel-description>
+          </mat-expansion-panel-header>
+
+          <div class="analysis-page__category-list">
+            @for (item of group.items; track item.label_name) {
+              <article class="analysis-page__label-card">
+                <div class="analysis-page__label-head">
+                  <p class="analysis-page__label-name">{{ item.label_name }}</p>
+                  <p class="analysis-page__confidence">{{ item.confidence | number: '1.2-2' }}</p>
+                </div>
+
+                <p class="analysis-page__reason">{{ item.reason }}</p>
+
+                @if (item.secondary_categories.length > 0) {
+                  <p class="analysis-page__meta">
+                    Secondary: {{ item.secondary_categories.join(', ') }}
+                  </p>
+                }
+
+                @if (item.suggested_category) {
+                  <p class="analysis-page__meta">
+                    Suggested category: {{ item.suggested_category }}
+                  </p>
+                }
+              </article>
+            }
+          </div>
+        </mat-expansion-panel>
+      }
+    </mat-accordion>
+  }
+</section>

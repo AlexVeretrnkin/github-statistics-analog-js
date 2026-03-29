@@ -43,6 +43,13 @@ export interface ComparisonSeries {
   months: MonthlyIssuePoint[];
 }
 
+export interface SelectedLabelSetView {
+  id: string;
+  name: string;
+  accentColor: string;
+  labels: RepositoryLabel[];
+}
+
 export interface RepositoryLabel {
   id: string;
   name: string;

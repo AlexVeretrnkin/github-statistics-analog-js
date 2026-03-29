@@ -12,7 +12,7 @@
   <mat-form-field appearance="outline">
     <mat-label>From</mat-label>
     <mat-select formControlName="from">
-      @for (option of monthOptions; track trackMonthOption($index, option)) {
+      @for (option of monthOptions; track option.value) {
         <mat-option [value]="option.value">{{ option.label }}</mat-option>
       }
     </mat-select>
@@ -21,7 +21,7 @@
   <mat-form-field appearance="outline">
     <mat-label>To</mat-label>
     <mat-select formControlName="to">
-      @for (option of monthOptions; track trackMonthOption($index, option)) {
+      @for (option of monthOptions; track option.value) {
         <mat-option [value]="option.value">{{ option.label }}</mat-option>
       }
     </mat-select>
@@ -30,7 +30,7 @@
   <div class="comparison-sets" formArrayName="comparisonSets">
     @for (
       comparisonSet of comparisonSets.controls;
-      track trackComparisonSet($index, comparisonSet);
+      track comparisonSet.controls.id.value;
       let setIndex = $index
     ) {
       <section class="comparison-set" [formGroupName]="setIndex">
@@ -80,10 +80,7 @@
             #labelsAutocomplete="matAutocomplete"
             (optionSelected)="addLabel(setIndex, $event.option.value)"
           >
-            @for (
-              label of getFilteredLabelOptions(setIndex);
-              track trackLabelOption($index, label)
-            ) {
+            @for (label of getFilteredLabelOptions(setIndex); track label.id) {
               <mat-option [value]="label.name">
                 <span>{{ label.name }}</span>
                 @if (label.description) {
@@ -114,10 +111,7 @@
       <mat-form-field appearance="outline" class="category-preset-field">
         <mat-label>Add analyzed category</mat-label>
         <mat-select (selectionChange)="selectCategoryPreset($event.value)">
-          @for (
-            preset of availableCategoryPresets();
-            track trackCategoryPreset($index, preset)
-          ) {
+          @for (preset of availableCategoryPresets(); track preset.category) {
             <mat-option [value]="preset.category">
               {{ preset.name }} · {{ preset.labelCount }} labels
             </mat-option>

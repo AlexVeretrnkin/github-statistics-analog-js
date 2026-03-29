@@ -14,7 +14,25 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     analog({
+      // static: true,
       inlineStylesExtension: 'scss',
+      // prerender: {
+      //   routes: async () => [
+      //     '/',
+      //     {
+      //       route: '/some-test',
+      //       staticData: true,
+      //     }
+      //   ],
+      //   postRenderingHooks: [
+      //     async (route) => console.log(route),
+      //   ],
+      // },
+      // nitro: {
+      //   routeRules: {
+      //     '/some-etest': { ssr: false },
+      //   },
+      // },
     }),
     tailwindcss(),
   ],

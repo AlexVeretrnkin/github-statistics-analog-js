@@ -9,9 +9,9 @@ import {
   provideZonelessChangeDetection,
 } from '@angular/core';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
-import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
-import { provideFileRouter, requestContextInterceptor } from '@analogjs/router';
+import {provideFileRouter, requestContextInterceptor, withDebugRoutes} from '@analogjs/router';
 import {withComponentInputBinding, withNavigationErrorHandler} from "@angular/router";
+import {provideAnimationsAsync} from "@angular/platform-browser/animations/async";
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -20,6 +20,7 @@ export const appConfig: ApplicationConfig = {
     provideAnimationsAsync(),
     provideFileRouter(
       withComponentInputBinding(),
+      withDebugRoutes(),
       withNavigationErrorHandler(console.error),
     ),
     provideHttpClient(

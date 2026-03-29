@@ -66,38 +66,12 @@ export class IssuesFiltersComponent {
 
   private readonly formBuilder = inject(NonNullableFormBuilder);
   protected readonly labelSearch = signal<Record<string, string>>({});
-
-  protected readonly monthOptions = getMonthOptions(84);
-  protected readonly filtersForm = this.formBuilder.group({
-    owner: this.formBuilder.control('', Validators.required),
-    repo: this.formBuilder.control('', Validators.required),
-    from: this.formBuilder.control('', Validators.required),
-    to: this.formBuilder.control('', Validators.required),
-    comparisonSets: this.formBuilder.array([createComparisonSetGroup(this.formBuilder)]),
-  });
+  protected readonly monthOptions = this.buildMonthOptions(84);
+  protected readonly filtersForm = this.buildFiltersForm();
 
   constructor() {
     effect(() => {
-      const filters = this.initialFilters();
-
-      this.filtersForm.patchValue(
-        {
-          owner: filters.owner,
-          repo: filters.repo,
-          from: filters.from,
-          to: filters.to,
-        },
-        { emitEvent: false },
-      );
-
-      this.filtersForm.setControl(
-        'comparisonSets',
-        this.formBuilder.array(
-          filters.comparisonSets.map((comparisonSet) =>
-            createComparisonSetGroup(this.formBuilder, comparisonSet),
-          ),
-        ),
-      );
+      this.syncForm(this.initialFilters());
     });
   }
 
@@ -134,7 +108,7 @@ export class IssuesFiltersComponent {
   }
 
   protected addComparisonSet(): void {
-    this.comparisonSets.push(createComparisonSetGroup(this.formBuilder));
+    this.comparisonSets.push(this.createComparisonSetGroup());
   }
 
   protected selectCategoryPreset(category: LabelResearchCategory): void {
@@ -227,19 +201,81 @@ export class IssuesFiltersComponent {
   });
 
   protected readonly displayLabelName = (value: string | null): string => value ?? '';
-  protected readonly displayCategoryPreset = (value: LabelResearchCategory | null): string =>
-    this.categoryPresets().find((preset) => preset.category === value)?.name ?? '';
-  protected readonly trackMonthOption = (_index: number, option: MonthOption) => option.value;
-  protected readonly trackCategoryPreset = (_index: number, preset: CategoryPresetOption) =>
-    preset.category;
-  protected readonly trackLabelOption = (_index: number, label: RepositoryLabel) => label.id;
-  protected readonly trackComparisonSet = (_index: number, control: ComparisonSetGroup) =>
-    control.controls.id.value;
 
   protected get comparisonSets(): FormArray<ComparisonSetGroup> {
     return this.filtersForm.controls.comparisonSets;
   }
+
+  private buildFiltersForm(): FiltersFormGroup {
+    return this.formBuilder.group({
+      owner: this.formBuilder.control('', Validators.required),
+      repo: this.formBuilder.control('', Validators.required),
+      from: this.formBuilder.control('', Validators.required),
+      to: this.formBuilder.control('', Validators.required),
+      comparisonSets: this.formBuilder.array([this.createComparisonSetGroup()]),
+    });
+  }
+
+  private syncForm(filters: IssuesFilters): void {
+    this.filtersForm.patchValue(
+      {
+        owner: filters.owner,
+        repo: filters.repo,
+        from: filters.from,
+        to: filters.to,
+      },
+      { emitEvent: false },
+    );
+
+    this.filtersForm.setControl(
+      'comparisonSets',
+      this.formBuilder.array(
+        filters.comparisonSets.map((comparisonSet) => this.createComparisonSetGroup(comparisonSet)),
+      ),
+    );
+  }
+
+  private createComparisonSetGroup(comparisonSet?: LabelComparisonSet): ComparisonSetGroup {
+    return this.formBuilder.group({
+      category: this.formBuilder.control(comparisonSet?.category ?? null),
+      id: this.formBuilder.control(comparisonSet?.id ?? this.createComparisonSetId()),
+      labels: this.formBuilder.control(comparisonSet?.labels ?? []),
+      name: this.formBuilder.control(comparisonSet?.name ?? ''),
+      source: this.formBuilder.control(comparisonSet?.source ?? 'manual'),
+    });
+  }
+
+  private buildMonthOptions(count: number): MonthOption[] {
+    const now = new Date();
+    const options: MonthOption[] = [];
+
+    for (let index = 0; index < count; index += 1) {
+      const current = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - index, 1));
+      const value = `${current.getUTCFullYear()}-${String(current.getUTCMonth() + 1).padStart(2, '0')}`;
+      const label = new Intl.DateTimeFormat('en', {
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'UTC',
+      }).format(current);
+
+      options.push({ value, label });
+    }
+
+    return options;
+  }
+
+  private createComparisonSetId(): string {
+    return `set-${Math.random().toString(36).slice(2, 10)}`;
+  }
 }
+
+type FiltersFormGroup = FormGroup<{
+  owner: FormControl<string>;
+  repo: FormControl<string>;
+  from: FormControl<string>;
+  to: FormControl<string>;
+  comparisonSets: FormArray<ComparisonSetGroup>;
+}>;
 
 type ComparisonSetGroup = FormGroup<{
   category: FormControl<LabelResearchCategory | null>;
@@ -252,40 +288,4 @@ type ComparisonSetGroup = FormGroup<{
 interface MonthOption {
   value: string;
   label: string;
-}
-
-function createComparisonSetGroup(
-  formBuilder: NonNullableFormBuilder,
-  comparisonSet?: LabelComparisonSet,
-): ComparisonSetGroup {
-  return formBuilder.group({
-    category: formBuilder.control(comparisonSet?.category ?? null),
-    id: formBuilder.control(comparisonSet?.id ?? createComparisonSetId()),
-    labels: formBuilder.control(comparisonSet?.labels ?? []),
-    name: formBuilder.control(comparisonSet?.name ?? ''),
-    source: formBuilder.control(comparisonSet?.source ?? 'manual'),
-  });
-}
-
-function getMonthOptions(count: number): MonthOption[] {
-  const now = new Date();
-  const options: MonthOption[] = [];
-
-  for (let index = 0; index < count; index += 1) {
-    const current = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - index, 1));
-    const value = `${current.getUTCFullYear()}-${String(current.getUTCMonth() + 1).padStart(2, '0')}`;
-    const label = new Intl.DateTimeFormat('en', {
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'UTC',
-    }).format(current);
-
-    options.push({ value, label });
-  }
-
-  return options;
-}
-
-function createComparisonSetId(): string {
-  return `set-${Math.random().toString(36).slice(2, 10)}`;
 }

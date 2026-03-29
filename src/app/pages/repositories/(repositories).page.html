@@ -1,0 +1,33 @@
+<section class="archive-page">
+  <header class="archive-page__hero">
+    <p class="archive-page__eyebrow">Research Archive</p>
+    <h1>Analyzed repositories</h1>
+    <p class="archive-page__lead">
+      Browse repositories that already have saved label analysis results.
+    </p>
+    <a class="archive-page__back-link" routerLink="../">Go Back to dashboard</a>
+  </header>
+
+  @if (repositories().length > 0) {
+    <div class="archive-page__grid">
+      @for (repository of repositories(); track repository.repositoryId) {
+        <a
+          class="archive-page__card-link"
+          [routerLink]="['/repositories', repository.owner, repository.repo]"
+        >
+          <mat-card appearance="outlined" class="archive-page__card p-4">
+            <p class="archive-page__repo">{{ repository.owner }}/{{ repository.repo }}</p>
+            <p class="archive-page__meta">{{ repository.provider }} · {{ repository.model }}</p>
+            <p class="archive-page__meta">
+              Analyzed {{ repository.analyzedAt | date: 'medium' }}
+            </p>
+          </mat-card>
+        </a>
+      }
+    </div>
+  } @else {
+    <mat-card appearance="outlined" class="archive-page__empty">
+      Analyze at least one repository from the dashboard to see it here.
+    </mat-card>
+  }
+</section>
