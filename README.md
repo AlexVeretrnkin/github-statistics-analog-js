@@ -6,6 +6,8 @@ This project was generated with [Analog](https://analogjs.org), the fullstack me
 
 Run `npm install` to install the application dependencies.
 
+Use Node.js `22.13.0` or newer because the app relies on the built-in `node:sqlite` module.
+
 Create a `.env` file with:
 
 ```bash
@@ -38,6 +40,20 @@ Run `npm start` for a dev server. Navigate to `http://localhost:5173/`. The appl
 ## Build
 
 Run `npm run build` to build the client/server project. The client build artifacts are located in the `dist/analog/public` directory. The server for the API build artifacts are located in the `dist/analog/server` directory.
+
+## Docker
+
+Build and run the production container locally with Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+The app will be available at `http://localhost:8080`.
+
+- `compose.yaml` loads variables from `.env`
+- the SQLite cache is mounted to a named Docker volume at `/app/.data`
+- stop the stack with `docker compose down`
 
 ## Test
 

@@ -3,17 +3,17 @@
   "version": "0.0.0",
   "type": "module",
   "engines": {
-    "node": ">=20.19.1"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "ng": "ng",
-    "dev": "NODE_OPTIONS=--experimental-sqlite vite",
+    "dev": "pnpm exec vite",
     "start": "pnpm run dev",
-    "build": "NODE_OPTIONS=--experimental-sqlite vite build",
-    "watch": "NODE_OPTIONS=--experimental-sqlite vite build --watch",
-    "graphql:codegen": "node --env-file=.env ./node_modules/@graphql-codegen/cli/cjs/bin.js --config codegen.ts",
-    "test": "NODE_OPTIONS=--experimental-sqlite vitest",
-    "preview": "node --experimental-sqlite dist/analog/server/index.mjs"
+    "build": "pnpm exec vite build",
+    "watch": "pnpm exec vite build --watch",
+    "graphql:codegen": "pnpm exec graphql-codegen --config codegen.ts",
+    "test": "pnpm exec vitest",
+    "preview": "node dist/analog/server/index.mjs"
   },
   "private": true,
   "dependencies": {

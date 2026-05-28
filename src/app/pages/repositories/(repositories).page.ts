@@ -1,12 +1,9 @@
 import { CommonModule, DatePipe } from '@angular/common';
 import {ChangeDetectionStrategy, Component, computed, input} from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { injectLoad } from '@analogjs/router';
 import { RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 
 import { type AnalyzedRepositoryListItem } from '../../core/github-statistics.models';
-import { load as serverLoad } from './(repositories).server';
 
 @Component({
   standalone: true,
