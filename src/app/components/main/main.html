@@ -16,6 +16,7 @@
     </div>
 
     <app-issues-filters
+      [analyzedRepositories]="analyzedRepositories()"
       [categoryPresets]="categoryPresets()"
       [initialFilters]="filters()"
       [labelOptions]="labelOptions()"
@@ -86,8 +87,8 @@
       <div #chartPanel class="chart-panel-export">
         <div class="panel-header">
           <h2>Monthly chart</h2>
-          @if (repository(); as currentRepository) {
-            <p>{{ currentRepository.owner }}/{{ currentRepository.name }}</p>
+          @if (chartSubtitle(); as subtitle) {
+            <p>{{ subtitle }}</p>
           } @else {
             <p>Apply filters to fetch statistics.</p>
           }

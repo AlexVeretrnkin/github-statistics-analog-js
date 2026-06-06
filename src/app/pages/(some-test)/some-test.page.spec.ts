@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { SomeTestPage } from './some-test.page';
+import SomeTestPage from './some-test.page';
 
 describe('SomeTest', () => {
   let component: SomeTestPage;
@@ -13,6 +13,7 @@ describe('SomeTest', () => {
     .compileComponents();
 
     fixture = TestBed.createComponent(SomeTestPage);
+    fixture.componentRef.setInput('load', {});
     component = fixture.componentInstance;
     await fixture.whenStable();
   });

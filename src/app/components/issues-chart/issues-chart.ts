@@ -82,10 +82,19 @@ export class IssuesChartComponent {
         currentSeries.months.map((month) => month.total),
       ),
     );
+    const yAxisMax = maxTotal > 0 ? Math.ceil(maxTotal * 1.12) : undefined;
 
     return {
       responsive: true,
       maintainAspectRatio: false,
+      layout: {
+        padding: {
+          top: 18,
+          right: 8,
+          bottom: 4,
+          left: 4,
+        },
+      },
       plugins: {
         legend: {
           position: 'bottom',
@@ -110,14 +119,14 @@ export class IssuesChartComponent {
         y: {
           stacked: true,
           beginAtZero: true,
-          max: maxTotal,
+          max: yAxisMax,
           ticks: {
             precision: 0,
           },
         },
         yLine: {
           beginAtZero: true,
-          max: maxTotal,
+          max: yAxisMax,
           position: 'right',
           display: false,
           grid: {

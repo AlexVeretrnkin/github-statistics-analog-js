@@ -45,9 +45,11 @@ export class GithubDashboardService {
     filters: IssuesFilters,
     comparisonSet: LabelComparisonSet,
   ): IssuesTimeseriesRequest {
+    const repository = this.resolveComparisonRepository(filters, comparisonSet);
+
     return {
-      owner: filters.owner,
-      repo: filters.repo,
+      owner: repository.owner,
+      repo: repository.repo,
       from: filters.from,
       to: filters.to,
       labels: comparisonSet.labels,
@@ -100,14 +102,15 @@ export class GithubDashboardService {
   }
 
   buildSelectedLabelSets(
-    comparisonSets: LabelComparisonSet[],
+    filters: IssuesFilters,
     labelOptions: RepositoryLabel[],
   ): SelectedLabelSetView[] {
-    return comparisonSets.map((comparisonSet, index) => ({
+    return filters.comparisonSets.map((comparisonSet, index) => ({
       id: comparisonSet.id,
       name: this.getComparisonSetName(index, comparisonSet),
       accentColor: this.getComparisonSetColor(index),
       labels: this.mapLabelsForComparisonSet(comparisonSet, labelOptions),
+      repositoryName: this.getComparisonRepositoryName(comparisonSet, undefined, filters),
     }));
   }
 
@@ -118,10 +121,11 @@ export class GithubDashboardService {
   ): ComparisonSeries[] {
     return comparisonSets.map((comparisonSet, index) => ({
       id: comparisonSet.id,
-      name: this.getComparisonSetName(index, comparisonSet),
+      name: this.getSeriesName(index, comparisonSet, responses[index]),
       color: this.getComparisonSetColor(index).replace('#', ''),
       labels: this.mapLabelsForComparisonSet(comparisonSet, labelOptions),
       months: responses[index]?.months ?? [],
+      repositoryName: this.getComparisonRepositoryName(comparisonSet, responses[index]),
     }));
   }
 
@@ -145,6 +149,46 @@ export class GithubDashboardService {
 
   private getComparisonSetName(index: number, comparisonSet: LabelComparisonSet): string {
     return comparisonSet.name || `Set ${index + 1}`;
+  }
+
+  private getSeriesName(
+    index: number,
+    comparisonSet: LabelComparisonSet,
+    response?: IssuesTimeseriesResponse,
+  ): string {
+    const repositoryName = this.getComparisonRepositoryName(comparisonSet, response);
+    const comparisonSetName = this.getComparisonSetName(index, comparisonSet);
+
+    if (comparisonSetName === 'All issues') {
+      return repositoryName;
+    }
+
+    return `${repositoryName} · ${comparisonSetName}`;
+  }
+
+  private getComparisonRepositoryName(
+    comparisonSet: LabelComparisonSet,
+    response?: IssuesTimeseriesResponse,
+    filters?: IssuesFilters,
+  ): string {
+    const owner = response?.repository.owner ?? comparisonSet.owner?.trim() ?? filters?.owner;
+    const repo = response?.repository.name ?? comparisonSet.repo?.trim() ?? filters?.repo;
+
+    if (owner && repo) {
+      return `${owner}/${repo}`;
+    }
+
+    return 'Default repository';
+  }
+
+  private resolveComparisonRepository(
+    filters: IssuesFilters,
+    comparisonSet: LabelComparisonSet,
+  ): { owner: string; repo: string } {
+    return {
+      owner: comparisonSet.owner?.trim() || filters.owner,
+      repo: comparisonSet.repo?.trim() || filters.repo,
+    };
   }
 
   private getComparisonSetColor(index: number): string {

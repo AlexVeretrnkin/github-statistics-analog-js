@@ -27,6 +27,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 
 import {
+  type AnalyzedRepositoryListItem,
   type CategoryPresetOption,
   type IssuesFilters,
   type LabelComparisonSet,
@@ -54,6 +55,7 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class IssuesFiltersComponent {
+  readonly analyzedRepositories = input<AnalyzedRepositoryListItem[]>([]);
   readonly categoryPresets = input<CategoryPresetOption[]>([]);
   readonly initialFilters = input.required<IssuesFilters>();
   readonly labelOptions = input<RepositoryLabel[]>([]);
@@ -88,6 +90,9 @@ export class IssuesFiltersComponent {
       comparisonSets: rawValue.comparisonSets.map((comparisonSet) => ({
         ...comparisonSet,
         category: comparisonSet.category ?? undefined,
+        owner: comparisonSet.owner.trim() || undefined,
+        repo: comparisonSet.repo.trim() || undefined,
+        name: comparisonSet.name.trim() || undefined,
       })),
     });
   }
@@ -109,6 +114,36 @@ export class IssuesFiltersComponent {
 
   protected addComparisonSet(): void {
     this.comparisonSets.push(this.createComparisonSetGroup());
+  }
+
+  protected addRepositoryComparisonSet(): void {
+    this.comparisonSets.push(
+      this.createComparisonSetGroup({
+        id: this.createComparisonSetId(),
+        labels: [],
+        name: 'All issues',
+        source: 'manual',
+      }),
+    );
+  }
+
+  protected selectAnalyzedRepository(setIndex: number, repositoryKey: string): void {
+    const [owner, repo] = repositoryKey.split('/');
+
+    if (!owner || !repo) {
+      return;
+    }
+
+    const comparisonSet = this.comparisonSets.at(setIndex);
+
+    comparisonSet.patchValue({
+      owner,
+      repo,
+    });
+
+    if (!comparisonSet.controls.name.value.trim()) {
+      comparisonSet.controls.name.setValue('All issues');
+    }
   }
 
   protected selectCategoryPreset(category: LabelResearchCategory): void {
@@ -190,6 +225,14 @@ export class IssuesFiltersComponent {
     return this.comparisonSets.at(index).controls.name.value || `Set ${index + 1}`;
   }
 
+  protected getSetRepositoryName(index: number): string {
+    const comparisonSet = this.comparisonSets.at(index);
+    const owner = comparisonSet.controls.owner.value.trim() || this.filtersForm.controls.owner.value;
+    const repo = comparisonSet.controls.repo.value.trim() || this.filtersForm.controls.repo.value;
+
+    return owner && repo ? `${owner}/${repo}` : 'Default repository';
+  }
+
   protected readonly availableCategoryPresets = computed(() => {
     const usedCategories = new Set(
       this.comparisonSets.controls
@@ -241,6 +284,8 @@ export class IssuesFiltersComponent {
       id: this.formBuilder.control(comparisonSet?.id ?? this.createComparisonSetId()),
       labels: this.formBuilder.control(comparisonSet?.labels ?? []),
       name: this.formBuilder.control(comparisonSet?.name ?? ''),
+      owner: this.formBuilder.control(comparisonSet?.owner ?? ''),
+      repo: this.formBuilder.control(comparisonSet?.repo ?? ''),
       source: this.formBuilder.control(comparisonSet?.source ?? 'manual'),
     });
   }
@@ -282,6 +327,8 @@ type ComparisonSetGroup = FormGroup<{
   id: FormControl<string>;
   labels: FormControl<string[]>;
   name: FormControl<string>;
+  owner: FormControl<string>;
+  repo: FormControl<string>;
   source: FormControl<'analysis-category' | 'manual'>;
 }>;
 

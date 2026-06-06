@@ -3,6 +3,8 @@ export interface LabelComparisonSet {
   id: string;
   labels: string[];
   name?: string;
+  owner?: string;
+  repo?: string;
   source?: 'analysis-category' | 'manual';
 }
 
@@ -41,6 +43,7 @@ export interface ComparisonSeries {
   color: string;
   labels: RepositoryLabel[];
   months: MonthlyIssuePoint[];
+  repositoryName: string;
 }
 
 export interface SelectedLabelSetView {
@@ -48,6 +51,7 @@ export interface SelectedLabelSetView {
   name: string;
   accentColor: string;
   labels: RepositoryLabel[];
+  repositoryName: string;
 }
 
 export interface RepositoryLabel {

@@ -18,6 +18,7 @@ import {forkJoin} from 'rxjs';
 import { GithubDashboardService } from '../../core/github-dashboard.service';
 import { GithubStatisticsService } from '../../core/github-statistics.service';
 import {
+  type AnalyzedRepositoryListItem,
   type CategoryPresetOption,
   type ComparisonSeries,
   type IssuesFilters,
@@ -57,6 +58,7 @@ export class Main {
   private readonly githubStatisticsService = inject(GithubStatisticsService);
   private readonly chartPanel = viewChild<ElementRef<HTMLElement>>('chartPanel');
 
+  protected readonly analyzedRepositories = signal<AnalyzedRepositoryListItem[]>([]);
   protected readonly labelOptions = signal<RepositoryLabel[]>([]);
   protected readonly labelAnalysis = signal<RepositoryLabelAnalysisResponse | null>(null);
   protected readonly loadingLabelAnalysis = signal(false);
@@ -69,14 +71,24 @@ export class Main {
     this.githubDashboardService.getInitialFilters(),
   );
 
-  protected readonly repository = computed(() => this.statistics()?.repository ?? null);
   protected readonly series = computed(() => this.comparisonSeries());
+  protected readonly chartSubtitle = computed(() => {
+    const repositoryNames = [
+      ...new Set(this.series().map((currentSeries) => currentSeries.repositoryName)),
+    ];
+
+    if (repositoryNames.length > 1) {
+      return `Comparing ${repositoryNames.length} repositories`;
+    }
+
+    return repositoryNames[0] ?? null;
+  });
   protected readonly categoryPresets = computed<CategoryPresetOption[]>(() =>
     this.githubDashboardService.buildCategoryPresets(this.labelAnalysis()),
   );
   protected readonly selectedLabelSets = computed<SelectedLabelSetView[]>(() =>
     this.githubDashboardService.buildSelectedLabelSets(
-      this.filters().comparisonSets,
+      this.filters(),
       this.labelOptions(),
     ),
   );
@@ -88,6 +100,7 @@ export class Main {
       owner: initialFilters.owner,
       repo: initialFilters.repo,
     });
+    this.loadAnalyzedRepositories();
 
     this.applyFilters(initialFilters);
   }
@@ -138,6 +151,18 @@ export class Main {
         console.error('Failed to load repository labels', error);
         this.labelOptions.set([]);
         this.loadingLabels.set(false);
+      },
+    });
+  }
+
+  private loadAnalyzedRepositories(): void {
+    this.githubStatisticsService.getAnalyzedRepositories().subscribe({
+      next: (repositories) => {
+        this.analyzedRepositories.set(repositories);
+      },
+      error: (error) => {
+        console.error('Failed to load analyzed repositories', error);
+        this.analyzedRepositories.set([]);
       },
     });
   }

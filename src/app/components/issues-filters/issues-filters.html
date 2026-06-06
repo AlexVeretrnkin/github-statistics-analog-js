@@ -38,6 +38,7 @@
           <div>
             <p class="comparison-set__eyebrow">Comparison set</p>
             <h3>{{ getSetTitle(setIndex) }}</h3>
+            <p class="comparison-set__repository">{{ getSetRepositoryName(setIndex) }}</p>
           </div>
 
           @if (comparisonSets.length > 1) {
@@ -51,6 +52,36 @@
             </button>
           }
         </div>
+
+        <div class="repository-fields">
+          <mat-form-field appearance="outline">
+            <mat-label>Owner</mat-label>
+            <input matInput formControlName="owner" placeholder="Uses default owner" />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Repository</mat-label>
+            <input matInput formControlName="repo" placeholder="Uses default repo" />
+          </mat-form-field>
+
+          @if (analyzedRepositories().length > 0) {
+            <mat-form-field appearance="outline">
+              <mat-label>Analyzed repository</mat-label>
+              <mat-select (selectionChange)="selectAnalyzedRepository(setIndex, $event.value)">
+                @for (repository of analyzedRepositories(); track repository.repositoryId) {
+                  <mat-option [value]="repository.owner + '/' + repository.repo">
+                    {{ repository.owner }}/{{ repository.repo }}
+                  </mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          }
+        </div>
+
+        <mat-form-field appearance="outline" class="set-name-field">
+          <mat-label>Series name</mat-label>
+          <input matInput formControlName="name" placeholder="All issues" />
+        </mat-form-field>
 
         <mat-form-field appearance="outline" class="labels-field">
           <mat-label>Labels for {{ getSetTitle(setIndex) }}</mat-label>
@@ -104,7 +135,11 @@
     </button>
 
     <button mat-stroked-button type="button" (click)="addComparisonSet()">
-      <span>Compare</span>
+      <span>Compare labels</span>
+    </button>
+
+    <button mat-stroked-button type="button" (click)="addRepositoryComparisonSet()">
+      <span>Compare repository</span>
     </button>
 
     @if (availableCategoryPresets().length > 0) {

@@ -44,10 +44,23 @@
   font-size: 1rem;
 }
 
+.comparison-set__repository {
+  margin: 0.2rem 0 0;
+  color: #5c6b81;
+  font-size: 0.85rem;
+}
+
 .comparison-set__remove {
   white-space: nowrap;
 }
 
+.repository-fields {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.set-name-field,
 .labels-field {
   width: 100%;
 }
@@ -81,6 +94,10 @@
 
 @media (max-width: 720px) {
   .filters-form {
+    grid-template-columns: 1fr;
+  }
+
+  .repository-fields {
     grid-template-columns: 1fr;
   }
 }
