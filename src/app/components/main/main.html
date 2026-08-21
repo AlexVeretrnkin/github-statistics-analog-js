@@ -1,16 +1,29 @@
 <section class="dashboard">
+  <nav class="research-nav" aria-label="Research navigation">
+    <span>Issue dynamics</span>
+    <a routerLink="/repositories">Research archive</a>
+    <a routerLink="/framework-popularity">Framework popularity</a>
+  </nav>
+
   <header class="hero">
-    <p class="eyebrow">AnalogJS Research Dashboard</p>
-    <h1>GitHub issue dynamics by month</h1>
-    <p class="lead">
-      Explore repository issue trends, compare open and closed counts, and focus the
-      analysis by repository labels.
-    </p>
-    <a routerLink="/repositories" class="archive-link">Browse analyzed repositories</a>
+    <div>
+      <p class="eyebrow">Repository research · monthly signals</p>
+      <h1>How GitHub issues move</h1>
+      <p class="lead">
+        Explore repository issue trends, compare open and closed work, and focus the
+        analysis through repository labels and research categories.
+      </p>
+    </div>
+    <div class="hero-note">
+      <span>Live GitHub data</span>
+      <strong>Issues, labels &amp; taxonomy</strong>
+      <small>Monthly comparisons backed by GraphQL, local caching, and saved analysis.</small>
+    </div>
   </header>
 
-  <mat-card appearance="outlined" class="panel p-6">
+  <mat-card appearance="outlined" class="panel panel--filters p-6">
     <div class="panel-header">
+      <p class="panel-kicker">Query builder</p>
       <h2>Filters</h2>
       <p>Choose repository parameters and load label options for the multi-select.</p>
     </div>
@@ -45,6 +58,7 @@
         <div class="analysis-panel-content">
           <div class="panel-header panel-header--actions">
             <div>
+              <p class="panel-kicker">AI-assisted classification</p>
               <h2>Label research analysis</h2>
               <p>
                 Use Gemini to detect technical debt labels and emergent taxonomy
@@ -86,6 +100,7 @@
 
       <div #chartPanel class="chart-panel-export">
         <div class="panel-header">
+          <p class="panel-kicker">Time series</p>
           <h2>Monthly chart</h2>
           @if (chartSubtitle(); as subtitle) {
             <p>{{ subtitle }}</p>
@@ -96,7 +111,7 @@
 
         <app-selected-labels [sets]="selectedLabelSets()" class="labels-summary" />
 
-        @defer (on viewport) {
+        @defer {
           <app-issues-chart [series]="series()" />
         } @placeholder {
           <div class="chart-loading-state">
@@ -108,6 +123,7 @@
 
     <mat-card appearance="outlined" class="panel table-panel p-6">
       <div class="panel-header">
+        <p class="panel-kicker">Research data</p>
         <h2>Monthly table</h2>
         <p>Monthly totals for each selected comparison set.</p>
       </div>

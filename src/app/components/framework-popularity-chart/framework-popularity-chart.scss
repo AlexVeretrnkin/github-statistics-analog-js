@@ -1,0 +1,11 @@
+.popularity-chart {
+  height: clamp(22rem, 52vw, 34rem);
+}
+
+.popularity-chart--empty {
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(25, 60, 184, 0.24);
+  border-radius: 1rem;
+  color: #5c6b81;
+}

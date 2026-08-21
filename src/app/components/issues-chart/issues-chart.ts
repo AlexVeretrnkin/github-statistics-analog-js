@@ -105,7 +105,7 @@ export class IssuesChartComponent {
         },
         tooltip: {
           callbacks: {
-            label: (context) => `${context.dataset.label}: ${context.formattedValue}`,
+            label: (context) => `${context.dataset.label ?? 'Series'}: ${context.formattedValue}`,
           },
         },
       },

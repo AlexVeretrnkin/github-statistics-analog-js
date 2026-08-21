@@ -1,11 +1,23 @@
 <section class="archive-page">
+  <nav class="research-nav" aria-label="Research navigation">
+    <a routerLink="/">Issue dynamics</a>
+    <span>Research archive</span>
+    <a routerLink="/framework-popularity">Framework popularity</a>
+  </nav>
+
   <header class="archive-page__hero">
-    <p class="archive-page__eyebrow">Research Archive</p>
-    <h1>Analyzed repositories</h1>
-    <p class="archive-page__lead">
-      Browse repositories that already have saved label analysis results.
-    </p>
-    <a class="archive-page__back-link" routerLink="../">Go Back to dashboard</a>
+    <div>
+      <p class="archive-page__eyebrow">Saved research · repository taxonomy</p>
+      <h1>Analyzed repositories</h1>
+      <p class="archive-page__lead">
+        Browse repositories with saved label-analysis results and return to their
+        research taxonomy without rerunning the model.
+      </p>
+    </div>
+    <div class="archive-page__count">
+      <strong>{{ repositories().length }}</strong>
+      <span>saved {{ repositories().length === 1 ? 'repository' : 'repositories' }}</span>
+    </div>
   </header>
 
   @if (repositories().length > 0) {
@@ -16,11 +28,13 @@
           [routerLink]="['/repositories', repository.owner, repository.repo]"
         >
           <mat-card appearance="outlined" class="archive-page__card p-4">
+            <p class="archive-page__card-kicker">Repository analysis</p>
             <p class="archive-page__repo">{{ repository.owner }}/{{ repository.repo }}</p>
             <p class="archive-page__meta">{{ repository.provider }} · {{ repository.model }}</p>
             <p class="archive-page__meta">
               Analyzed {{ repository.analyzedAt | date: 'medium' }}
             </p>
+            <span class="archive-page__open">Open analysis →</span>
           </mat-card>
         </a>
       }

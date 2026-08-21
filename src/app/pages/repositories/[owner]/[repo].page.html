@@ -1,20 +1,26 @@
 <section class="analysis-page">
-  <a routerLink="/repositories" class="analysis-page__back">← Back to analyzed repositories</a>
+  <nav class="research-nav" aria-label="Research navigation">
+    <a routerLink="/">Issue dynamics</a>
+    <a routerLink="/repositories">Research archive</a>
+    <a routerLink="/framework-popularity">Framework popularity</a>
+  </nav>
 
   @if (analysis(); as currentAnalysis) {
     <header class="analysis-page__hero">
-      <p class="analysis-page__eyebrow">Repository Analysis</p>
-      <h1>{{ currentAnalysis.repository.owner }}/{{ currentAnalysis.repository.name }}</h1>
-      <p class="analysis-page__lead">
-        Grouped label analysis with a focus on technical debt and adjacent categories.
-      </p>
-    </header>
+      <div>
+        <p class="analysis-page__eyebrow">Repository analysis · saved taxonomy</p>
+        <h1>{{ currentAnalysis.repository.owner }}/<wbr>{{ currentAnalysis.repository.name }}</h1>
+        <p class="analysis-page__lead">
+          Grouped label analysis with a focus on technical debt and adjacent research categories.
+        </p>
+      </div>
 
-    <mat-card appearance="outlined" class="analysis-page__summary p-4">
-      <p>Provider: {{ currentAnalysis.provider }}</p>
-      <p>Model: {{ currentAnalysis.model }}</p>
-      <p>Prompt version: {{ currentAnalysis.prompt_version }}</p>
-    </mat-card>
+      <mat-card appearance="outlined" class="analysis-page__summary p-4">
+        <span>Analysis model</span>
+        <strong>{{ currentAnalysis.model }}</strong>
+        <small>{{ currentAnalysis.provider }} · prompt {{ currentAnalysis.prompt_version }}</small>
+      </mat-card>
+    </header>
 
     <mat-accordion class="analysis-page__accordion" multi>
       @for (group of groupedCategories(); track group.category) {
@@ -32,7 +38,9 @@
               <article class="analysis-page__label-card">
                 <div class="analysis-page__label-head">
                   <p class="analysis-page__label-name">{{ item.label_name }}</p>
-                  <p class="analysis-page__confidence">{{ item.confidence | number: '1.2-2' }}</p>
+                  <p class="analysis-page__confidence">
+                    {{ item.confidence | percent: '1.0-0' }} confidence
+                  </p>
                 </div>
 
                 <p class="analysis-page__reason">{{ item.reason }}</p>

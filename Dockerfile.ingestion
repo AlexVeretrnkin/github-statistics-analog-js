@@ -1,0 +1,61 @@
+FROM node:22-bookworm-slim AS base
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+RUN corepack enable
+
+FROM base AS deps
+
+WORKDIR /workspace
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/ingestion-api/package.json ./apps/ingestion-api/package.json
+COPY packages/ingestion-contracts/package.json ./packages/ingestion-contracts/package.json
+COPY packages/research-database/package.json ./packages/research-database/package.json
+
+RUN pnpm install --frozen-lockfile
+
+FROM deps AS build
+
+COPY apps/ingestion-api ./apps/ingestion-api
+COPY packages/ingestion-contracts ./packages/ingestion-contracts
+COPY packages/research-database ./packages/research-database
+
+RUN pnpm run build:ingestion
+
+FROM base AS prod-deps
+
+WORKDIR /workspace
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/ingestion-api/package.json ./apps/ingestion-api/package.json
+COPY packages/ingestion-contracts/package.json ./packages/ingestion-contracts/package.json
+COPY packages/research-database/package.json ./packages/research-database/package.json
+COPY --from=deps /pnpm/store /pnpm/store
+
+RUN pnpm install --prod --offline --frozen-lockfile \
+  --filter @github-statistics/ingestion-api...
+
+FROM node:22-bookworm-slim AS runner
+
+WORKDIR /workspace
+
+ENV NODE_ENV=production
+ENV PORT=8080
+
+COPY --from=prod-deps /workspace/node_modules ./node_modules
+COPY --from=build /workspace/apps/ingestion-api/package.json ./apps/ingestion-api/package.json
+COPY --from=prod-deps /workspace/apps/ingestion-api/node_modules ./apps/ingestion-api/node_modules
+COPY --from=build /workspace/apps/ingestion-api/dist ./apps/ingestion-api/dist
+COPY --from=build /workspace/packages/ingestion-contracts/package.json ./packages/ingestion-contracts/package.json
+COPY --from=prod-deps /workspace/packages/ingestion-contracts/node_modules ./packages/ingestion-contracts/node_modules
+COPY --from=build /workspace/packages/ingestion-contracts/dist ./packages/ingestion-contracts/dist
+COPY --from=build /workspace/packages/research-database/package.json ./packages/research-database/package.json
+COPY --from=prod-deps /workspace/packages/research-database/node_modules ./packages/research-database/node_modules
+COPY --from=build /workspace/packages/research-database/dist ./packages/research-database/dist
+COPY --from=build /workspace/packages/research-database/drizzle ./packages/research-database/drizzle
+
+EXPOSE 8080
+
+CMD ["node", "apps/ingestion-api/dist/index.js"]

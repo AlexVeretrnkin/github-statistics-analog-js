@@ -1,0 +1,160 @@
+<section class="popularity-page">
+  <nav class="research-nav" aria-label="Research navigation">
+    <a routerLink="/">Issue dynamics</a>
+    <a routerLink="/repositories">Research archive</a>
+    <span>Framework popularity</span>
+  </nav>
+
+  <header class="popularity-hero">
+    <div>
+      <p class="eyebrow">Consolidated research · through {{ research().generatedAt }}</p>
+      <h1>How JavaScript frameworks move</h1>
+      <p class="lead">
+        Compare React, Angular, and Vue across search interest, package usage, and
+        repository attention. Each signal answers a different popularity question.
+      </p>
+    </div>
+    <div class="hero-note">
+      <span>3 signals</span>
+      <strong>One research workspace</strong>
+      <small>Interactive views backed by the preserved R analysis pipeline.</small>
+    </div>
+  </header>
+
+  <section class="metric-tabs" aria-label="Popularity metric">
+    @for (metric of research().metrics; track metric.id) {
+      <button
+        type="button"
+        [class.metric-tab--active]="metric.id === selectedMetricId()"
+        (click)="selectMetric(metric.id)"
+      >
+        <span>{{ metric.label }}</span>
+        <small>{{ metric.sourceLabel }}</small>
+      </button>
+    }
+  </section>
+
+  <section class="research-panel chart-panel">
+    <div class="panel-heading">
+      <div>
+        <p class="panel-kicker">{{ selectedMetric().sourceLabel }}</p>
+        <h2>{{ selectedMetric().label }}</h2>
+        <p>{{ selectedMetric().description }}</p>
+      </div>
+
+      <div class="controls">
+        <div class="control-group" aria-label="Frameworks">
+          @for (framework of ['React', 'Angular', 'Vue']; track framework) {
+            <button
+              type="button"
+              class="framework-chip"
+              [class.framework-chip--active]="isFrameworkSelected($any(framework))"
+              [attr.data-framework]="framework"
+              (click)="toggleFramework($any(framework))"
+            >{{ framework }}</button>
+          }
+        </div>
+        <div class="control-group" aria-label="Time range">
+          <button type="button" [class.active]="selectedRange() === '5y'" (click)="selectRange('5y')">5 years</button>
+          <button type="button" [class.active]="selectedRange() === 'all'" (click)="selectRange('all')">All</button>
+        </div>
+        <div class="control-group" aria-label="Scale">
+          <button type="button" [class.active]="selectedScale() === 'absolute'" (click)="selectScale('absolute')">Absolute</button>
+          <button type="button" [class.active]="selectedScale() === 'index-100'" (click)="selectScale('index-100')">Index 100</button>
+          <button type="button" [class.active]="selectedScale() === 'log-10'" (click)="selectScale('log-10')">Log</button>
+        </div>
+        <div class="control-group" aria-label="Forecast model">
+          <button type="button" [class.active]="forecastMode() === 'best'" (click)="selectForecastMode('best')">Best forecast</button>
+          <button type="button" [class.active]="forecastMode() === 'ARIMA'" (click)="selectForecastMode('ARIMA')">ARIMA</button>
+          <button type="button" [class.active]="forecastMode() === 'ETS'" (click)="selectForecastMode('ETS')">ETS</button>
+          <button type="button" [class.active]="forecastMode() === 'PROPHET'" (click)="selectForecastMode('PROPHET')">Prophet</button>
+          <button type="button" [class.active]="forecastMode() === 'off'" (click)="selectForecastMode('off')">Off</button>
+        </div>
+        @if (forecastMode() !== 'off') {
+          <button
+            type="button"
+            class="interval-toggle"
+            [class.interval-toggle--active]="showForecastInterval()"
+            (click)="toggleForecastInterval()"
+          >
+            80% interval
+          </button>
+        }
+      </div>
+    </div>
+
+    @defer {
+      <app-framework-popularity-chart
+        [series]="visibleSeries()"
+        [forecasts]="visibleForecasts()"
+        [showInterval]="showForecastInterval()"
+        [unit]="displayUnit()"
+      />
+    } @placeholder {
+      <div class="chart-placeholder">Loading the research chart…</div>
+    }
+  </section>
+
+  @if (visibleForecasts().length > 0) {
+    <section class="forecast-strip" aria-label="Active forecasts">
+      <div>
+        <p class="panel-kicker">24-month outlook</p>
+        <strong>{{ forecastHeading() }}</strong>
+      </div>
+      <div class="forecast-models">
+        @for (forecast of visibleForecasts(); track forecast.framework + forecast.model) {
+          <span>
+            <b>{{ forecast.framework }}</b> · {{ formatForecastModel(forecast.model) }} · RMSE {{ formatRmse(forecast.validationRmse) }}
+          </span>
+        }
+      </div>
+    </section>
+  }
+
+  <section class="summary-grid" aria-label="Latest observations">
+    @for (summary of summaries(); track summary.framework) {
+      <article class="summary-card" [attr.data-framework]="summary.framework">
+        <p>{{ summary.framework }}</p>
+        <strong>{{ formatValue(summary.latestValue) }}</strong>
+        <span>{{ selectedMetric().unit }} · {{ summary.latestDate }}</span>
+        @if (summary.change !== null) {
+          <small [class.negative]="summary.change < 0">
+            {{ summary.change >= 0 ? '+' : '' }}{{ summary.change | number: '1.0-1' }}% year over year
+          </small>
+        }
+      </article>
+    }
+  </section>
+
+  <section class="details-grid">
+    <article class="research-panel methodology-card">
+      <p class="panel-kicker">Method</p>
+      <h2>How to read this signal</h2>
+      <p>{{ selectedMetric().methodology }}</p>
+      <ul>
+        @for (note of research().provenanceNotes; track note) {
+          <li>{{ note }}</li>
+        }
+      </ul>
+      <p class="deferred-note">Git-stars data origin is recorded as deferred, as requested.</p>
+    </article>
+
+    <article class="research-panel diagnostics-card">
+      <p class="panel-kicker">Model diagnostics</p>
+      <h2>Ljung–Box residual checks</h2>
+      <p>ARIMA and ETS residual checks. Prophet is compared through the holdout RMSE shown above.</p>
+      <div class="diagnostics-table" role="table" aria-label="Model residual p-values">
+        <div class="diagnostics-row diagnostics-row--head" role="row">
+          <span>Framework</span><span>ARIMA p</span><span>ETS p</span>
+        </div>
+        @for (item of diagnostics(); track item.framework) {
+          <div class="diagnostics-row" role="row">
+            <strong>{{ item.framework }}</strong>
+            <span>{{ formatPValue(item.arimaPValue) }}</span>
+            <span>{{ formatPValue(item.etsPValue) }}</span>
+          </div>
+        }
+      </div>
+    </article>
+  </section>
+</section>

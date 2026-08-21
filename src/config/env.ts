@@ -1,4 +1,6 @@
 export interface AppEnv {
+  DATABASE_URL?: string;
+  FRAMEWORK_RESEARCH_DB_READS?: string;
   GEMINI_API_KEY?: string;
   GEMINI_LABEL_ANALYSIS_CACHE_TTL_MS?: string;
   GEMINI_MODEL?: string;
@@ -15,6 +17,8 @@ const trimEnv = (value: string | undefined): string | undefined => {
 };
 
 const readEnv = (): AppEnv => ({
+  DATABASE_URL: trimEnv(process.env['DATABASE_URL']),
+  FRAMEWORK_RESEARCH_DB_READS: trimEnv(process.env['FRAMEWORK_RESEARCH_DB_READS']),
   GEMINI_API_KEY: trimEnv(process.env['GEMINI_API_KEY']),
   GEMINI_LABEL_ANALYSIS_CACHE_TTL_MS: trimEnv(process.env['GEMINI_LABEL_ANALYSIS_CACHE_TTL_MS']),
   GEMINI_MODEL: trimEnv(process.env['GEMINI_MODEL']),

@@ -1,0 +1,4 @@
+framework,repository,archived_through,archived_total,snapshot_date,current_total,total_delta,days_gap,status
+React,facebook/react,2025-09-20,239071,2026-08-19,247416,8345,333,ok
+Angular,angular/angular,2025-09-20,98833,2026-08-19,101007,2174,333,ok
+Vue,vuejs/core,2025-09-20,51628,2026-08-19,54219,2591,333,ok

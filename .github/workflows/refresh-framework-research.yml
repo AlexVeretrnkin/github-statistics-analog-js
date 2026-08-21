@@ -1,0 +1,86 @@
+name: Legacy CSV framework research refresh
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: Data source to refresh
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - npm
+          - google
+          - github
+          - none
+
+concurrency:
+  group: refresh-framework-research
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Install and cache R dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::httr
+            any::jsonlite
+            any::readr
+            any::dplyr
+            any::tidyr
+            any::purrr
+            any::lubridate
+            any::zoo
+            any::forecast
+            any::prophet
+            any::tibble
+            any::gtrendsR
+          cache-version: 1
+
+      - name: Refresh source data and forecasts
+        working-directory: research/framework-popularity
+        env:
+          REFRESH_SOURCE: ${{ inputs.source || 'all' }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: Rscript refresh_data.R "--source=${REFRESH_SOURCE}"
+
+      - name: Show changed research files
+        run: git status --short research/framework-popularity
+
+      - name: Open research-data pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ github.token }}
+          branch: automation/framework-research-refresh
+          delete-branch: true
+          commit-message: 'chore(research): refresh framework popularity data'
+          title: 'chore(research): refresh framework popularity data'
+          body: |
+            Automated monthly refresh of framework-popularity source data and
+            24-month ARIMA, ETS, and Prophet forecasts.
+
+            The pipeline validates source schemas, duplicate keys, value ranges,
+            forecast horizons, and best-model selection before opening this PR.
+          add-paths: |
+            research/framework-popularity/out
+            research/framework-popularity/git_stars
+            research/framework-popularity/ts_out/gt_ui_5y_monthly_cat31.csv
+            research/framework-popularity/ts_out/gt_ui_5y_weekly_cat31.csv

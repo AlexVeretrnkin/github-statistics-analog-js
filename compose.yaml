@@ -1,18 +1,72 @@
+name: github-statistics-local
+
 services:
-  app:
+  postgres:
+    image: postgres:18-alpine
+    container_name: github-statistics-postgres
+    environment:
+      POSTGRES_DB: ${LOCAL_DATABASE_NAME:-research}
+      POSTGRES_PASSWORD: ${LOCAL_DATABASE_PASSWORD:-research-local-only}
+      POSTGRES_USER: ${LOCAL_DATABASE_USER:-research}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "127.0.0.1:${LOCAL_POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    restart: unless-stopped
+
+  web:
     build:
       context: .
       target: runner
     container_name: github-statistics-analog-js
-    env_file:
-      - .env
+    depends_on:
+      ingestion-api:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     environment:
+      DATABASE_URL: postgresql://${LOCAL_DATABASE_USER:-research}:${LOCAL_DATABASE_PASSWORD:-research-local-only}@postgres:5432/${LOCAL_DATABASE_NAME:-research}
+      FRAMEWORK_RESEARCH_DB_READS: "true"
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       PORT: 8080
     ports:
-      - "8080:8080"
+      - "127.0.0.1:${LOCAL_WEB_PORT:-8080}:8080"
     volumes:
       - app_data:/app/.data
     restart: unless-stopped
 
+  ingestion-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.ingestion
+    container_name: github-statistics-ingestion
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${LOCAL_DATABASE_USER:-research}:${LOCAL_DATABASE_PASSWORD:-research-local-only}@postgres:5432/${LOCAL_DATABASE_NAME:-research}
+      PORT: 8080
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:8080/healthz').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "127.0.0.1:${LOCAL_INGESTION_PORT:-8081}:8080"
+    restart: unless-stopped
+
 volumes:
   app_data:
+  postgres_data:

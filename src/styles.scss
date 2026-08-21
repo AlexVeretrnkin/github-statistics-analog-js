@@ -18,5 +18,20 @@ body {
   display: flex;
   flex-direction: column;
   flex: 1;
+  color: #172033;
+  background: #f6f4ee;
 }
 
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid rgba(8, 126, 164, 0.32);
+  outline-offset: 3px;
+}

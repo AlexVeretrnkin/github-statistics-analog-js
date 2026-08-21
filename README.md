@@ -4,7 +4,8 @@ This project was generated with [Analog](https://analogjs.org), the fullstack me
 
 ## Setup
 
-Run `npm install` to install the application dependencies.
+This repository is a pnpm workspace monorepo. Run `pnpm install` to install all workspace
+dependencies.
 
 Use Node.js `22.13.0` or newer because the app relies on the built-in `node:sqlite` module.
 
@@ -29,35 +30,88 @@ GITHUB_LABELS_CACHE_TTL_MS=864000000
 GEMINI_API_KEY=your_gemini_api_key
 GEMINI_MODEL=gemini-2.5-flash
 GEMINI_LABEL_ANALYSIS_CACHE_TTL_MS=2592000000
+
+# Optional PostgreSQL research persistence.
+DATABASE_URL=postgresql://user:password@host/database?sslmode=require
+FRAMEWORK_RESEARCH_DB_READS=false
 ```
 
 Environment variables are read through a shared config module, so the same values are used by both the Analog server route and GraphQL code generation.
 
 ## Development
 
-Run `npm start` for a dev server. Navigate to `http://localhost:5173/`. The application automatically reloads if you change any of the source files.
+Run `pnpm start` for a dev server. Navigate to `http://localhost:5173/`. The application automatically reloads if you change any of the source files.
+
+### Complete local environment
+
+The local environment uses PostgreSQL in Docker and never connects to Neon. Start the database,
+compiled ingestion service, and Vite web server with:
+
+```bash
+cp .env.local.example .env.local # required once on a fresh clone
+pnpm local:dev
+```
+
+Then, from another terminal, publish a small deterministic dataset through the real HTTP and
+Drizzle transaction path:
+
+```bash
+pnpm local:smoke
+```
+
+The web application is at `http://127.0.0.1:8080`, the private API is at
+`http://127.0.0.1:8081`, and PostgreSQL is exposed locally on port `5433`. Stop the application
+processes with Ctrl-C and PostgreSQL with `pnpm local:down`.
+
+To test the production-style containers instead of native Node processes:
+
+```bash
+pnpm local:up
+pnpm local:status
+pnpm local:smoke
+pnpm local:logs
+pnpm local:down
+```
+
+`pnpm local:reset` additionally deletes the local PostgreSQL and SQLite volumes. Use it only when
+you intentionally want a clean bootstrap.
+
+After installing the documented R dependencies, `pnpm local:pipeline:npm` runs the real npm
+collector and publisher against the local ingestion API. On a fresh database it backfills from
+2015 and therefore takes considerably longer than `local:smoke`.
 
 ## Build
 
-Run `npm run build` to build the client/server project. The client build artifacts are located in the `dist/analog/public` directory. The server for the API build artifacts are located in the `dist/analog/server` directory.
+Run `pnpm build:web` for the public client/server application, `pnpm build:ingestion` for the
+private writer, or `pnpm build:all` for both.
+
+The workspace boundary is:
+
+- `src/` — public Analog application (`@github-statistics/web`)
+- `apps/ingestion-api/` — private database writer (`@github-statistics/ingestion-api`)
+- `packages/ingestion-contracts/` — shared versioned request contracts
+- `packages/research-database/` — shared Drizzle ORM schema, migrations, and repositories
 
 ## Docker
 
-Build and run the production container locally with Docker Compose:
+Build and run both production containers plus local PostgreSQL with Docker Compose:
 
 ```bash
-docker compose up --build
+pnpm local:up
 ```
 
-The app will be available at `http://localhost:8080`.
+The web app is available at `http://localhost:8080`; the ingestion API is available at
+`http://localhost:8081` and requires `DATABASE_URL`.
 
-- `compose.yaml` loads variables from `.env`
+- `compose.yaml` loads local defaults from `.env.local`
 - the SQLite cache is mounted to a named Docker volume at `/app/.data`
-- stop the stack with `docker compose down`
+- PostgreSQL uses its own named volume and never reads the Neon connection string
+- all published host ports bind to `127.0.0.1`
+- stop the stack with `pnpm local:down`
 
 ## Test
 
-Run `npm run test` to run unit tests with [Vitest](https://vitest.dev).
+Run `pnpm test` to run the browser/server and workspace Node tests with [Vitest](https://vitest.dev).
 
 ## GitHub GraphQL
 
@@ -82,6 +136,35 @@ GitHub API responses are cached in a local SQLite database by default:
 - `issues` responses use a default TTL of 10 days
 - `labels` responses use a default TTL of 10 days
 - repeated requests with the same normalized parameters are served from SQLite until the TTL expires
+
+## JavaScript Framework Popularity Research
+
+The consolidated research dashboard is available at `/framework-popularity`. It
+compares React, Angular, and Vue using three archived monthly signals:
+
+- Google Trends interest in the web-frameworks category
+- npm package downloads
+- new GitHub stars per month
+
+The original R collection, transformation, ARIMA/ETS/Prophet forecasting, diagnostics,
+datasets, and generated evidence live in `research/framework-popularity`. npm is the
+first source migrated to scheduled PostgreSQL ingestion; the remaining signals and
+forecasts continue to use archived inputs during the migration.
+
+Refresh npm, Google Trends, and GitHub stars plus all ARIMA, ETS, and Prophet
+forecasts with `pnpm research:refresh`. Use `pnpm research:refresh:stars` for the
+GitHub snapshot source alone. Use `pnpm research:setup` once to install the required
+R packages. The `Ingest npm downloads` GitHub Actions workflow now publishes validated
+npm batches to an IAM-protected Cloud Run ingestion endpoint using OIDC. The legacy CSV
+workflow is manual-only.
+
+The complete design, schema, authentication flow, endpoint contract, deployment setup,
+failure behavior, and migration roadmap are documented in
+[`docs/research-ingestion-architecture.md`](docs/research-ingestion-architecture.md).
+
+Research persistence uses Drizzle ORM with a typed PostgreSQL schema and generated migrations.
+The public application contains database reads only; its container does not include the private
+ingestion server.
 
 ## Gemini Label Analysis
 

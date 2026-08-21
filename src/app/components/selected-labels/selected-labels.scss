@@ -9,7 +9,7 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #6a7689;
+  color: #087ea4;
 }
 
 .selected-labels__sets {
@@ -22,9 +22,10 @@
   display: grid;
   gap: 0.75rem;
   padding: 0.9rem 1rem;
-  border-radius: 1.15rem;
-  border: 1px solid var(--set-accent);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(247, 249, 255, 0.94));
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--set-accent) 38%, transparent);
+  border-left: 4px solid var(--set-accent);
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .selected-labels__set-header {

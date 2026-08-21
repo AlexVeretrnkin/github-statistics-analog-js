@@ -1,88 +1,160 @@
-.archive-page {
+:host {
+  display: block;
   min-height: 100dvh;
-  padding: 2rem clamp(1rem, 3vw, 2.5rem) 3rem;
-  display: grid;
-  gap: 1.25rem;
   background:
-    radial-gradient(circle at top left, rgba(244, 185, 66, 0.2), transparent 32%),
-    radial-gradient(circle at top right, rgba(25, 60, 184, 0.14), transparent 28%),
-    linear-gradient(180deg, #f8f5ee 0%, #eef3fb 52%, #ffffff 100%);
+    radial-gradient(circle at 8% 0%, rgba(66, 184, 131, 0.16), transparent 28rem),
+    radial-gradient(circle at 92% 5%, rgba(8, 126, 164, 0.14), transparent 30rem),
+    #f6f4ee;
 }
+
+.archive-page {
+  width: min(90rem, 100%);
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding: 1.25rem clamp(1rem, 4vw, 4rem) 4rem;
+  display: grid;
+  align-content: start;
+  gap: 0.8rem;
+  color: #172033;
+}
+
+.research-nav {
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
+  padding: 0.75rem 0 2.5rem;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.research-nav a,
+.research-nav span {
+  color: #526078;
+  text-decoration: none;
+}
+
+.research-nav span { color: #172033; }
 
 .archive-page__hero {
-  max-width: 44rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2rem;
+  align-items: end;
+  margin-bottom: 1.7rem;
 }
 
-.archive-page__eyebrow {
+.archive-page__eyebrow,
+.archive-page__card-kicker {
   margin: 0 0 0.75rem;
-  font-size: 0.85rem;
-  font-weight: 700;
+  color: #087ea4;
+  font-size: 0.76rem;
+  font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #193cb8;
 }
 
 .archive-page__hero h1 {
+  max-width: 60rem;
   margin: 0;
-  font-size: clamp(2rem, 4vw, 3.2rem);
-  line-height: 1;
+  font-size: clamp(2.8rem, 7vw, 6.6rem);
+  font-weight: 850;
+  letter-spacing: -0.065em;
+  line-height: 0.9;
 }
 
 .archive-page__lead {
-  margin: 1rem 0 0;
-  color: #46566e;
-  line-height: 1.6;
+  max-width: 47rem;
+  margin: 1.5rem 0 0;
+  color: #596579;
+  font-size: clamp(1rem, 1.5vw, 1.18rem);
+  line-height: 1.65;
 }
 
-.archive-page__back-link {
-  display: inline-flex;
-  width: fit-content;
-  margin-top: 1rem;
-  color: #193cb8;
-  text-decoration: none;
-  font-weight: 700;
+.archive-page__count {
+  min-width: 10rem;
+  padding: 1.2rem 1.35rem;
+  border: 1px solid rgba(23, 32, 51, 0.11);
+  border-radius: 1.2rem;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.archive-page__count strong,
+.archive-page__count span { display: block; }
+
+.archive-page__count strong {
+  font-size: 2.8rem;
+  letter-spacing: -0.06em;
+  line-height: 1;
+}
+
+.archive-page__count span {
+  margin-top: 0.4rem;
+  color: #697487;
+  font-size: 0.8rem;
 }
 
 .archive-page__grid {
   display: grid;
-  gap: 1rem;
+  gap: 0.8rem;
   grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
 }
 
 .archive-page__card-link {
-  text-decoration: none;
   color: inherit;
+  text-decoration: none;
 }
 
 .archive-page__card,
 .archive-page__empty {
-  border-radius: 1.35rem;
-  border-color: rgba(25, 60, 184, 0.14);
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 18px 38px rgba(16, 29, 58, 0.08);
+  border-radius: 1.2rem;
+  border-color: rgba(23, 32, 51, 0.1);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 24px 70px rgba(32, 45, 69, 0.08);
 }
 
 .archive-page__card {
+  min-height: 13rem;
+  border-top: 4px solid #172033;
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
 .archive-page__card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 24px 46px rgba(16, 29, 58, 0.12);
+  transform: translateY(-3px);
+  box-shadow: 0 30px 80px rgba(32, 45, 69, 0.13);
 }
 
 .archive-page__repo {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
+  margin: 1rem 0 0;
+  font-size: clamp(1.3rem, 2.5vw, 1.8rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
 }
 
 .archive-page__meta {
   margin: 0.45rem 0 0;
-  color: #5c6b81;
+  color: #637086;
+}
+
+.archive-page__open {
+  display: block;
+  margin-top: 1.4rem;
+  color: #172033;
+  font-weight: 800;
 }
 
 .archive-page__empty {
   padding: 1.2rem;
-  color: #5c6b81;
+  color: #637086;
+}
+
+@media (max-width: 720px) {
+  .research-nav {
+    align-items: start;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .archive-page__hero {
+    grid-template-columns: 1fr;
+  }
 }

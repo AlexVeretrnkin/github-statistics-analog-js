@@ -8,9 +8,9 @@
 
 .table-shell {
   overflow: auto;
-  border: 1px solid rgba(25, 60, 184, 0.12);
-  border-radius: 1.25rem;
-  background: white;
+  border: 1px solid rgba(23, 32, 51, 0.1);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.76);
 }
 
 .issues-table {
@@ -18,7 +18,11 @@
 }
 
 .issues-table th {
-  font-weight: 700;
+  color: #687589;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .issues-table td,
@@ -54,8 +58,8 @@
 
 .table-empty {
   padding: 1.25rem;
-  border: 1px dashed rgba(25, 60, 184, 0.2);
-  border-radius: 1.25rem;
-  color: #405267;
+  border: 1px dashed rgba(23, 32, 51, 0.2);
+  border-radius: 1rem;
+  color: #637086;
   text-align: center;
 }

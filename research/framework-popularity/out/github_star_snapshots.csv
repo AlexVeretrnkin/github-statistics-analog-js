@@ -1,0 +1,4 @@
+month,snapshot_date,framework,repository,total_stars,observed_at,source
+2026-08-01,2026-08-19,Angular,angular/angular,101007,2026-08-19T06:27:19Z,github-rest-repository
+2026-08-01,2026-08-19,React,facebook/react,247416,2026-08-19T06:27:19Z,github-rest-repository
+2026-08-01,2026-08-19,Vue,vuejs/core,54219,2026-08-19T06:27:19Z,github-rest-repository

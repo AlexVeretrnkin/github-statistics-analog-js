@@ -14,7 +14,8 @@
 .label-analysis__metric {
   padding: 0.95rem 1.1rem;
   border-radius: 1.15rem;
-  background: linear-gradient(135deg, rgba(25, 60, 184, 0.08), rgba(25, 60, 184, 0.16));
+  border: 1px solid rgba(23, 32, 51, 0.1);
+  background: #172033;
 }
 
 .label-analysis__metric-label,
@@ -29,7 +30,11 @@
   margin: 0.25rem 0 0;
   font-size: 2rem;
   font-weight: 800;
-  color: #193cb8;
+  color: #ffffff;
+}
+
+.label-analysis__metric .label-analysis__metric-label {
+  color: rgba(255, 255, 255, 0.68);
 }
 
 .label-analysis__meta {
@@ -55,8 +60,8 @@
 .label-analysis__emergent-card {
   padding: 0.95rem 1rem;
   border-radius: 1rem;
-  border: 1px solid rgba(25, 60, 184, 0.12);
-  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(23, 32, 51, 0.1);
+  background: rgba(255, 255, 255, 0.68);
 }
 
 .label-analysis__emergent-name {
@@ -75,8 +80,8 @@
   grid-template-columns: minmax(8rem, 1.1fr) minmax(8rem, 1fr) minmax(10rem, 1.2fr) minmax(8rem, 1fr) 5.5rem minmax(14rem, 1.8fr);
   padding: 0.9rem 1rem;
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(25, 60, 184, 0.08);
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(23, 32, 51, 0.08);
   align-items: start;
 }
 
@@ -112,8 +117,8 @@
   min-height: 1.75rem;
   padding: 0.15rem 0.65rem;
   border-radius: 999px;
-  background: rgba(25, 60, 184, 0.12);
-  color: #193cb8;
+  background: rgba(8, 126, 164, 0.12);
+  color: #087ea4;
   font-size: 0.84rem;
   font-weight: 700;
 }

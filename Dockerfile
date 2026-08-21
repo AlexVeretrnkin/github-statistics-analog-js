@@ -9,7 +9,10 @@ FROM base AS deps
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/ingestion-api/package.json ./apps/ingestion-api/package.json
+COPY packages/ingestion-contracts/package.json ./packages/ingestion-contracts/package.json
+COPY packages/research-database/package.json ./packages/research-database/package.json
 
 RUN pnpm install --frozen-lockfile
 
@@ -27,6 +30,7 @@ ENV NODE_ENV=production
 ENV PORT=8080
 
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/research ./research
 
 EXPOSE 8080
 

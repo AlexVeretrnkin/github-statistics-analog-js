@@ -1,0 +1,7 @@
+@if (series().length) {
+  <div class="popularity-chart">
+    <canvas baseChart [data]="chartData()" [options]="chartOptions()" type="line"></canvas>
+  </div>
+} @else {
+  <div class="popularity-chart popularity-chart--empty">Select at least one framework.</div>
+}

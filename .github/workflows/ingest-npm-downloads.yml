@@ -1,0 +1,82 @@
+name: Ingest npm downloads
+
+on:
+  schedule:
+    # The previous calendar month is complete; avoid GitHub's busiest cron minute.
+    - cron: '17 6 6 * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ingest-npm-downloads
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Install and cache collector dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::httr
+            any::jsonlite
+            any::dplyr
+            any::tidyr
+            any::purrr
+            any::tibble
+          cache-version: 2
+
+      - name: Authenticate for checkpoint read
+        id: checkpoint-auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_INGESTION_SERVICE_ACCOUNT }}
+          token_format: id_token
+          id_token_audience: ${{ vars.GCP_INGESTION_AUDIENCE }}
+
+      - name: Read npm ingestion checkpoint
+        env:
+          INGESTION_TOKEN: ${{ steps.checkpoint-auth.outputs.id_token }}
+          INGESTION_URL: ${{ vars.GCP_INGESTION_URL }}
+        run: |
+          checkpoint_json="$(curl --fail --silent --show-error \
+            --header "Authorization: Bearer ${INGESTION_TOKEN}" \
+            "${INGESTION_URL}/api/internal/v1/ingestions/npm-downloads/checkpoint")"
+          latest_date="$(jq --raw-output '.latestDate // ""' <<< "${checkpoint_json}")"
+          echo "RESEARCH_NPM_LATEST_DATE=${latest_date}" >> "${GITHUB_ENV}"
+
+      - name: Collect npm download observations
+        working-directory: research/framework-popularity
+        run: Rscript jobs/collect_npm_ingestion.R
+
+      # Cloud Run ID tokens are intentionally short-lived. Mint a new one after collection.
+      - name: Authenticate for ingestion publish
+        id: publish-auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_INGESTION_SERVICE_ACCOUNT }}
+          token_format: id_token
+          id_token_audience: ${{ vars.GCP_INGESTION_AUDIENCE }}
+
+      - name: Publish and commit npm dataset
+        working-directory: research/framework-popularity
+        env:
+          RESEARCH_INGESTION_TOKEN: ${{ steps.publish-auth.outputs.id_token }}
+          RESEARCH_INGESTION_URL: ${{ vars.GCP_INGESTION_URL }}
+        run: Rscript jobs/publish_npm_ingestion.R

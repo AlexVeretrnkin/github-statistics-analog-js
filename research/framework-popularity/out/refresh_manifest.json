@@ -1,0 +1,27 @@
+{
+  "generated_at": "2026-08-19T06:28:33Z",
+  "sources": {
+    "npm_downloads": {
+      "through": "2026-07-01",
+      "rows": 417
+    },
+    "google_trends": {
+      "through": "2026-07-01",
+      "rows": 60,
+      "window": "rolling-five-years",
+      "category": 31
+    },
+    "github_stars": {
+      "through": "2026-08-19",
+      "rows": 3,
+      "repositories": 3,
+      "metric": "net-growth-between-first-party-count-snapshots",
+      "legacy_history": "archived-origin-pending"
+    }
+  },
+  "forecasts": {
+    "horizon_months": 24,
+    "models": ["ARIMA", "ETS", "PROPHET"],
+    "rows": 648
+  }
+}

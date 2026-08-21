@@ -2,6 +2,7 @@
 
 # Compiled output
 /dist
+**/dist/
 /tmp
 /out-tsc
 /bazel-out
@@ -39,6 +40,8 @@ yarn-error.log
 /libpeerconnection.log
 testem.log
 /typings
+/research/framework-popularity/.r-library/
+/research/framework-popularity/out/*_ingestion.rds
 
 # System files
 .DS_Store
@@ -47,3 +50,4 @@ Thumbs.db
 # Environment files
 .env*
 !.env.example
+!.env.local.example
