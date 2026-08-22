@@ -74,6 +74,12 @@ For a local end-to-end run, start the stack with `pnpm local:dev` or `pnpm local
 this real collector and publisher against the loopback ingestion endpoint. The local publisher
 bypass is enabled explicitly for that command and is never set by the GitHub workflow.
 
+After a real local run, `pnpm local:compare:npm` reconciles the PostgreSQL daily observations and
+monthly aggregates with the original archived CSVs in this directory. Add strict exit semantics
+with `pnpm local:compare:npm:strict`. Comparison is limited to the common date range per package;
+coverage outside that range is displayed but is not classified as a difference. Avoid running the
+synthetic `local:smoke` fixture before a clean historical comparison.
+
 `.github/workflows/refresh-framework-research.yml` is now a manual-only legacy CSV
 workflow while the remaining sources migrate. Google Trends is an unofficial public
 endpoint and may rate-limit shared CI addresses; the collector retries with

@@ -80,6 +80,21 @@ After installing the documented R dependencies, `pnpm local:pipeline:npm` runs t
 collector and publisher against the local ingestion API. On a fresh database it backfills from
 2015 and therefore takes considerably longer than `local:smoke`.
 
+Compare the canonical database rows produced by that run with the original archived CSV output:
+
+```bash
+pnpm local:compare:npm
+pnpm local:compare:npm:strict
+```
+
+The comparison checks both daily observations and monthly aggregates over each package's common
+date range. The normal command prints coverage and representative differences; the strict command
+also exits unsuccessfully when a row is missing, extra, or has a different download count. Data
+outside the common range is reported as coverage rather than treated as a mismatch; having no
+common coverage is a strict-mode error. Run the comparison before `pnpm local:smoke` when you need
+an uncontaminated real-data result, because the smoke command deliberately inserts synthetic
+observations.
+
 ## Build
 
 Run `pnpm build:web` for the public client/server application, `pnpm build:ingestion` for the

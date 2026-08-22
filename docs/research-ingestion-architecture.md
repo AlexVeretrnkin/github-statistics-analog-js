@@ -507,17 +507,50 @@ on subsequent executions.
 runs the real R npm collector, and publishes the handoff to the local API. Its explicit
 `RESEARCH_INGESTION_ALLOW_UNAUTHENTICATED=true` setting is accepted only by the publisher script;
 the scheduled GitHub workflow does not set it. Production remains protected by Cloud Run IAM.
+During an initial backfill, npm can omit leading dates from before a package existed; the collector
+stores those dates as zeroes to preserve the original archive convention. It still requires
+continuous coverage after the first observation and coverage through the latest requested date.
 
 ```bash
 cp .env.local.example .env.local
 pnpm local:dev          # terminal 1
 pnpm local:smoke        # terminal 2
 pnpm local:pipeline:npm # optional real npm API run
+pnpm local:compare:npm  # compare DB rows with the archived CSV baseline
 pnpm local:down
 ```
 
 `pnpm local:reset` performs `docker compose down --volumes` and deletes all local database/cache
 state. It is intentionally separate from the normal stop command.
+
+### Archived-data reconciliation
+
+`pnpm local:compare:npm` is a read-only quality check between the canonical PostgreSQL tables and
+the original outputs in `research/framework-popularity/out/npm_downloads_daily.csv` and
+`npm_downloads_monthly.csv`. For each package and granularity it reports:
+
+- archived, database, and common coverage;
+- exact matches and value mismatches;
+- missing and extra keys inside the common coverage range;
+- the largest absolute difference and representative examples.
+
+Later database dates and earlier archived dates are not failures because the two datasets can have
+different collection boundaries. `pnpm local:compare:npm:strict` applies the same range rule but
+returns a non-zero status for any difference within that range or when no common range exists,
+which makes it suitable for CI or an explicit acceptance check. The underlying command also
+accepts `--json` for machine-readable output:
+
+```bash
+pnpm run build:packages
+node tools/compare-npm-data.mjs --json
+```
+
+For a clean end-to-end comparison, reset the disposable local database, start the stack, run
+`pnpm local:pipeline:npm`, and then run the comparison. Do not run `pnpm local:smoke` first: its
+deterministic synthetic rows intentionally differ from the historical npm archive. A mismatch can
+also represent a correction to source data—for example, a zero captured by the old script may be
+replaced by a non-zero value returned by npm during the new run—so inspect the examples before
+treating every strict failure as a pipeline regression.
 
 The PostgreSQL integration test is opt-in because it mutates its configured database. Run it only
 against a disposable database:

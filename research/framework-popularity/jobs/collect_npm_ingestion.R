@@ -103,13 +103,28 @@ raw <- purrr::map_dfr(packages, fetch_history, from = fetch_start, to = end_date
 
 coverage <- raw |>
   dplyr::group_by(package) |>
-  dplyr::summarise(first_date = min(date), last_date = max(date), rows = dplyr::n(), .groups = "drop")
+  dplyr::summarise(
+    first_date = min(date),
+    last_date = max(date),
+    rows = dplyr::n(),
+    .groups = "drop"
+  ) |>
+  dplyr::mutate(expected_rows = as.integer(last_date - first_date + 1))
 
 if (!setequal(coverage$package, packages)) stop("npm did not return all tracked packages.")
-if (any(coverage$first_date != fetch_start) || any(coverage$last_date != end_date)) {
-  stop("npm response did not cover both endpoints of the requested range.")
+if (any(coverage$last_date != end_date)) {
+  stop("npm response did not cover the latest requested date.")
+}
+if (fetch_start > history_start && any(coverage$first_date != fetch_start)) {
+  stop("npm incremental response did not cover the first requested date.")
+}
+if (any(coverage$rows != coverage$expected_rows)) {
+  stop("npm response contained missing dates after a package's first observation.")
 }
 
+# A bootstrap can start before a package existed. The npm API omits that leading
+# range (for example, @angular/core before 2015-01-10), whereas the archived
+# scripts represented it as zeroes. Incremental runs still require both endpoints.
 fresh <- raw |>
   tidyr::complete(
     package = packages,

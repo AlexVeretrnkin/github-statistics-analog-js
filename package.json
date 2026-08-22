@@ -35,6 +35,8 @@
     "local:logs": "docker compose --env-file .env.local -f compose.yaml logs --follow",
     "local:smoke": "node tools/local-ingestion-smoke.mjs",
     "local:pipeline:npm": "node tools/run-local-npm-pipeline.mjs",
+    "local:compare:npm": "pnpm run build:packages && node tools/compare-npm-data.mjs",
+    "local:compare:npm:strict": "pnpm run build:packages && node tools/compare-npm-data.mjs --strict",
     "test": "pnpm run build:packages && pnpm exec vitest run && pnpm exec vitest run --config vitest.node.config.ts",
     "preview": "node dist/analog/server/index.mjs"
   },
