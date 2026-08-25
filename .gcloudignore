@@ -1,4 +1,7 @@
+# Keep local and generated artifacts out of `gcloud run deploy --source` uploads.
+.gcloudignore
 .git
+.gitignore
 .idea
 .vscode
 .angular
@@ -12,8 +15,6 @@ output
 .env
 .env.*
 !.env.example
-Dockerfile*
-README.md
 npm-debug.log
 yarn-error.log
 pnpm-debug.log
