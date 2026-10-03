@@ -17,8 +17,9 @@ research pipeline. It is both an implementation guide and the operational runboo
   a Drizzle ORM database package without sharing entry points or container images.
 - Drizzle's TypeScript schema is the database source of truth; generated SQL migrations are kept
   in version control and applied by the ingestion service during startup.
-- npm downloads are the first migrated source. Google Trends, GitHub snapshots, and forecasts
-  remain archived-file inputs until their later migrations.
+- npm downloads, Google Trends, and GitHub stars are durable scheduled database sources.
+  GitHub's first-party REST collector publishes complete daily histories and completed-month
+  aggregates through the private ingestion API; forecasts remain generated-file inputs.
 
 ## Components
 
@@ -111,6 +112,21 @@ runner and is ignored by Git; it is a step handoff, not persistent storage.
 - Source data ends at yesterday; the current day is never ingested.
 - Monthly dashboard rows are published only for completed calendar months.
 - Every package must have the same continuous staged date interval before commit succeeds.
+
+## Google Trends scheduled workflow
+
+The implemented workflow is `.github/workflows/ingest-google-trends.yml`. It runs at 06:47 UTC
+on the sixth day of each month and can also be started manually. It requests the rolling five-year
+web-search window for React, Angular, and Vue in category 31.
+
+Google already returns interest normalized to a 0–100 scale; the collector preserves those values
+without applying another normalization. Because Google may rescale the entire result for each
+request, every run stages and atomically replaces the complete weekly window. PostgreSQL derives
+monthly values by averaging the weekly observations and excludes the still-incomplete current
+month using an explicit first-day-of-current-month boundary supplied by the collector.
+
+Commit validation requires all three frameworks, at least 250 observations per framework,
+identical weekly dates, values within 0–100, and a final date equal to `sourceDataThrough`.
 
 ## Authentication and trust
 
@@ -231,7 +247,7 @@ existing Artifact Registry repository is `cloud-run-source-deploy`.
 | Variable | Meaning |
 | --- | --- |
 | `DATABASE_URL` | Read-only PostgreSQL connection URL |
-| `FRAMEWORK_RESEARCH_DB_READS` | Replaces archived observed npm series with PostgreSQL rows when `true` |
+| `FRAMEWORK_RESEARCH_DB_READS` | Replaces available archived npm, Google Trends, and GitHub Stars series with canonical PostgreSQL rows when `true` |
 
 ### Private ingestion variables
 
@@ -254,9 +270,23 @@ existing Artifact Registry repository is `cloud-run-source-deploy`.
 
 `RESEARCH_TODAY` is a deterministic test override. Production leaves it unset.
 
+### Google Trends job variables
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `RESEARCH_TRENDS_CATEGORY` | `31` | Google Trends category |
+| `RESEARCH_TRENDS_GEO` | empty | Worldwide geography |
+| `RESEARCH_TRENDS_LANGUAGE` | `en-US` | Request language |
+| `RESEARCH_GOOGLE_TRENDS_INGESTION_FILE` | `out/google_trends_ingestion.rds` | Ephemeral collector/publisher handoff |
+| `RESEARCH_INGESTION_BATCH_SIZE` | `500` | Rows per PUT request; maximum 1,000 |
+| `RESEARCH_INGESTION_URL` | none | Private Cloud Run base URL |
+| `RESEARCH_INGESTION_TOKEN` | none | Cloud Run ID token |
+
 ## HTTP ingestion contract
 
-All routes are under `/api/internal/v1/ingestions/npm-downloads`.
+The same run/batch/commit/fail lifecycle is exposed under both
+`/api/internal/v1/ingestions/npm-downloads` and
+`/api/internal/v1/ingestions/google-trends`.
 
 | Method and route | Purpose |
 | --- | --- |
@@ -280,6 +310,24 @@ The current contract version is `schemaVersion: 1`. A batch contains 1–1,000 r
 }
 ```
 
+A Google Trends batch uses the values returned by Google directly:
+
+```json
+{
+  "rows": [
+    {
+      "framework": "React",
+      "date": "2026-08-16",
+      "interest": 42
+    }
+  ]
+}
+```
+
+The Google Trends run-creation payload also requires `completedMonthBefore` (for example,
+`2026-08-01`) so database aggregation does not depend on server time or infer completion from a
+weekly observation date.
+
 Validation is performed at both levels:
 
 - Request validation rejects unknown packages, malformed dates, negative/non-integer values,
@@ -302,9 +350,10 @@ stateDiagram-v2
 
 - A batch number is a stable idempotency key within a run.
 - Repeating the same `PUT` replaces that batch transactionally.
-- Uploading the same package/date in a different batch is a conflict.
+- Uploading the same package/date or framework/date in a different batch is a conflict.
 - A committed or failed run cannot accept more batches.
-- Commit takes a PostgreSQL advisory transaction lock, so two npm datasets cannot publish at once.
+- Commit takes a source-specific PostgreSQL advisory transaction lock, so two datasets for the
+  same source cannot publish at once.
 - Failed validation leaves canonical tables and the active dataset unchanged.
 
 ## PostgreSQL schema and Drizzle ORM
@@ -324,6 +373,9 @@ erDiagram
   RESEARCH_PIPELINE_RUNS ||--o{ NPM_DOWNLOAD_DAILY_STAGING : stages
   RESEARCH_PIPELINE_RUNS ||--o{ NPM_DOWNLOAD_DAILY : last_updated_by
   RESEARCH_PIPELINE_RUNS ||--o{ NPM_DOWNLOAD_MONTHLY : last_updated_by
+  RESEARCH_PIPELINE_RUNS ||--o{ GOOGLE_TRENDS_WEEKLY_STAGING : stages
+  RESEARCH_PIPELINE_RUNS ||--o{ GOOGLE_TRENDS_WEEKLY : last_updated_by
+  RESEARCH_PIPELINE_RUNS ||--o{ GOOGLE_TRENDS_MONTHLY : last_updated_by
   RESEARCH_PIPELINE_RUNS ||--o| ACTIVE_RESEARCH_DATASETS : activates
 
   RESEARCH_PIPELINE_RUNS {
@@ -372,6 +424,30 @@ erDiagram
     timestamptz updated_at
   }
 
+  GOOGLE_TRENDS_WEEKLY_STAGING {
+    uuid run_id PK,FK
+    int batch_number FK
+    text framework PK
+    date date PK
+    double interest
+  }
+
+  GOOGLE_TRENDS_WEEKLY {
+    text framework PK
+    date date PK
+    double interest
+    uuid last_run_id FK
+    timestamptz updated_at
+  }
+
+  GOOGLE_TRENDS_MONTHLY {
+    text framework PK
+    date period PK
+    double interest
+    uuid last_run_id FK
+    timestamptz updated_at
+  }
+
   ACTIVE_RESEARCH_DATASETS {
     text source PK
     uuid run_id FK
@@ -396,6 +472,10 @@ One database transaction performs the following:
 
 Readers therefore see either the previous complete dataset or the new complete dataset, never a
 partially uploaded result.
+
+Google Trends uses the same transaction boundary but replaces the complete canonical weekly
+window, then derives monthly averages from it using the collector's explicit completed-month
+boundary.
 
 ## Cloud Run deployments
 
@@ -425,25 +505,29 @@ Use a generated password and adapt the schema/database names if needed:
 CREATE ROLE framework_web_reader LOGIN PASSWORD 'generated-password';
 GRANT CONNECT ON DATABASE neondb TO framework_web_reader;
 GRANT USAGE ON SCHEMA public TO framework_web_reader;
-GRANT SELECT ON npm_download_monthly, active_research_datasets
+GRANT SELECT ON npm_download_monthly, google_trends_monthly, github_star_monthly,
+  active_research_datasets
   TO framework_web_reader;
 ```
 
-The web code queries only `npm_download_monthly` in this iteration.
+The web code queries `npm_download_monthly`, `google_trends_monthly`, and
+`github_star_monthly`.
 
 Future migrations that introduce additional public read tables must grant those tables to the
 reader role explicitly.
 
 ## Application read behavior
 
-`FRAMEWORK_RESEARCH_DB_READS=false` keeps the existing archived CSV reader. When it is `true` and
-npm rows exist, the observed npm series comes from PostgreSQL. Google Trends, GitHub stars,
-diagnostics, and all forecasts still come from archived research files in iteration one.
+`FRAMEWORK_RESEARCH_DB_READS=false` keeps the existing archived CSV reader. When it is `true`,
+available observed npm, Google Trends, and GitHub Stars series come from PostgreSQL. A metric falls
+back to its archived/generated file only if its database table is empty. GitHub legacy files are
+retained only as a rollback input and QA baseline; they are not authoritative once a run is committed.
+Diagnostics and forecasts still come from generated research files.
 
 Recommended rollout:
 
 1. Build `Dockerfile.ingestion` and deploy it as the private ingestion service.
-2. Run `Ingest npm downloads` manually and confirm a committed run.
+2. Run all three ingestion workflows manually and confirm committed runs.
 3. Compare PostgreSQL monthly values with the archived CSV dashboard.
 4. Deploy the public service with `FRAMEWORK_RESEARCH_DB_READS=true` and the read-only URL.
 5. Leave the legacy CSV workflow manual-only as a rollback tool.
@@ -451,7 +535,7 @@ Recommended rollout:
 ## Failure handling and operations
 
 - Network/API requests use retries and timeouts in the collector.
-- GitHub Actions concurrency prevents overlapping npm workflows.
+- GitHub Actions concurrency prevents overlapping workflows for each source.
 - A publisher error after run creation attempts to mark the run failed.
 - A runner terminated before `/fail` can leave a receiving run; it is harmless because only a
   successful commit affects canonical data. A later cleanup job can expire abandoned runs.
@@ -475,6 +559,20 @@ GROUP BY package
 ORDER BY package;
 
 SELECT * FROM active_research_datasets WHERE source = 'npm-downloads';
+
+SELECT framework, min(date), max(date), count(*)
+FROM google_trends_weekly
+GROUP BY framework
+ORDER BY framework;
+
+SELECT * FROM active_research_datasets WHERE source = 'google-trends';
+
+SELECT repository, min(date), max(date), count(*), sum(new_stars)
+FROM github_star_daily
+GROUP BY repository
+ORDER BY repository;
+
+SELECT * FROM active_research_datasets WHERE source = 'github-stars';
 ```
 
 ## Verification commands
@@ -484,7 +582,10 @@ pnpm test
 pnpm build:all
 pnpm --filter @github-statistics/research-database db:check
 Rscript -e "parse(file='research/framework-popularity/jobs/collect_npm_ingestion.R')"
+Rscript -e "parse(file='research/framework-popularity/jobs/collect_github_stars_ingestion.R')"
 Rscript -e "parse(file='research/framework-popularity/jobs/publish_npm_ingestion.R')"
+Rscript -e "parse(file='research/framework-popularity/jobs/collect_google_trends_ingestion.R')"
+Rscript -e "parse(file='research/framework-popularity/jobs/publish_google_trends_ingestion.R')"
 ```
 
 ### Full local environment
@@ -500,8 +601,8 @@ Two modes are supported:
 
 After either mode is ready, `pnpm local:smoke` performs the complete contract flow: checkpoint,
 run creation, batch upload, atomic commit, checkpoint verification, and public dashboard request.
-It uses deterministic January 2015 data on an empty database and a deterministic 14-day overlap
-on subsequent executions.
+It uses deterministic npm data plus a 260-week Google Trends fixture; subsequent npm executions
+use a deterministic 14-day overlap.
 
 `pnpm local:pipeline:npm` is the slower external-integration check. It reads the local checkpoint,
 runs the real R npm collector, and publishes the handoff to the local API. Its explicit
@@ -511,12 +612,18 @@ During an initial backfill, npm can omit leading dates from before a package exi
 stores those dates as zeroes to preserve the original archive convention. It still requires
 continuous coverage after the first observation and coverage through the latest requested date.
 
+`pnpm local:pipeline:trends` performs the equivalent real Google Trends collection and publish.
+It replaces the full rolling window because values from separately normalized requests must not
+be appended.
+
 ```bash
 cp .env.local.example .env.local
 pnpm local:dev          # terminal 1
 pnpm local:smoke        # terminal 2
 pnpm local:pipeline:npm # optional real npm API run
+pnpm local:pipeline:trends # optional real Google Trends run
 pnpm local:compare:npm  # compare DB rows with the archived CSV baseline
+pnpm local:compare:trends # compare DB rows with the exact ingestion payload
 pnpm local:down
 ```
 
@@ -552,6 +659,31 @@ also represent a correction to source data—for example, a zero captured by the
 replaced by a non-zero value returned by npm during the new run—so inspect the examples before
 treating every strict failure as a pipeline regression.
 
+### Google Trends reconciliation
+
+`pnpm local:compare:trends` reads the ephemeral `out/google_trends_ingestion.rds` produced by the
+most recent collector and compares it with both canonical Google Trends tables. It validates the
+schema version, expected frameworks, minimum weekly coverage, identical framework dates,
+`sourceDataThrough`, and the 0–100 value range. It then:
+
+1. compares every weekly framework/date/value with `google_trends_weekly`;
+2. independently derives completed-month averages from the RDS rows;
+3. compares those aggregates with `google_trends_monthly`.
+
+`pnpm local:compare:trends:strict` returns a non-zero status for any invariant, key, or value
+difference. `--json` provides machine-readable output, and `--input=/path/to/file.rds` checks a
+specific handoff file. An older archived Trends CSV is deliberately not used as an exact baseline,
+because Google can renormalize its complete 0–100 result between requests.
+
+### GitHub Stars reconciliation
+
+`pnpm local:compare:stars` reads canonical `github_star_daily` and
+`github_star_monthly` rows and compares them with the former Daily Stars Explorer CSVs only over
+their common coverage. The daily comparison uses every overlapping date. The monthly comparison
+uses only full calendar months contained in that overlap, so a partial first or last legacy month
+cannot create a false discrepancy. `pnpm local:compare:stars:strict` fails on missing keys or value
+differences; default mode reports the differences for provenance review.
+
 The PostgreSQL integration test is opt-in because it mutates its configured database. Run it only
 against a disposable database:
 
@@ -560,6 +692,7 @@ RUN_DATABASE_INTEGRATION_TESTS=true \
 DATABASE_URL=postgresql://... \
 pnpm exec vitest run --config vitest.node.config.ts \
   packages/research-database/src/npm-ingestion.integration.spec.ts
+  packages/research-database/src/github-stars-ingestion.integration.spec.ts
 ```
 
 When the Drizzle schema changes, generate and inspect a migration before committing it:
@@ -579,24 +712,28 @@ pnpm --filter @github-statistics/research-database db:check
 - GitHub Actions OIDC authentication.
 - Database-backed observed npm dashboard series.
 
-### Iteration 2: forecasting
+### Iteration 2: Google Trends — implemented
 
-- Add a private forecast-input endpoint backed by normalized database series.
+- Complete rolling five-year replacement as one versioned dataset.
+- Google-returned 0–100 values preserved without additional normalization.
+- Request metadata and category retained on each pipeline run.
+- Atomic activation after range, framework, date, and value validation.
+- Database-backed observed Google Trends dashboard series.
+
+### Iteration 3: forecasting
+
+- Add a private forecast-input endpoint backed by canonical database series.
 - Run ARIMA, ETS, and Prophet without durable CSV inputs.
 - Add versioned forecast staging/canonical tables and commit validation.
 - Switch npm forecasts in the dashboard to database reads.
 
-### Iteration 3: Google Trends
+### Iteration 4: GitHub star-history database migration — implemented
 
-- Replace the entire rolling five-year window as one versioned dataset.
-- Preserve the normalization request metadata and category.
-- Activate only after range and value validation.
-
-### Iteration 4: GitHub repository snapshots
-
-- Store every observation rather than overwriting one row per month.
-- Derive monthly net growth in SQL or a transformation job.
-- Add tracked repositories and repository issue/label snapshots.
+- Complete histories are staged in `github_star_daily_staging`, validated for all tracked
+  repositories and gap-free dates, then atomically replace `github_star_daily`.
+- `github_star_monthly` is derived transactionally from completed calendar months.
+- Headline-count QA and daily/monthly legacy reconciliation run before publication and are
+  retained in pipeline metadata; issue/label snapshots remain separate future work.
 
 ### Iteration 5: remove production CSV persistence
 

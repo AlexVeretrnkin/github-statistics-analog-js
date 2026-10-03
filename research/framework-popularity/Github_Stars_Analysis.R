@@ -8,9 +8,7 @@ pkgs <- c("readr","dplyr","lubridate","ggplot2","tidyr","scales","forecast")
 for (p in pkgs) if (!require(p, character.only=TRUE)) install.packages(p, quiet=TRUE)
 invisible(lapply(pkgs, require, character.only=TRUE))
 
-csv_vue     <- "git_stars/vuejs_core-stars-history.csv"      # vuejs/core
-csv_react   <- "git_stars/facebook_react-stars-history.csv"  # facebook/react
-csv_angular <- "git_stars/angular_angular-stars-history.csv" # angular/angular
+monthly_csv <- "out/github_stars_monthly.csv"
 
 out_dir <- "ts_out/forecast_RAV_monthly_github_stars"
 if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
@@ -47,30 +45,12 @@ forecast_plot <- function(x, fc, title = "Прогноз (GitHub Stars)") {
     theme_minimal()
 }
 
-# 4) Зчитування DSE та агрегація по місяцях
-read_dse <- function(path){
-  df <- readr::read_csv(path, show_col_types = FALSE)
-  names(df) <- tolower(names(df))
-  stopifnot(all(c("date","day-stars","total-stars") %in% names(df)))
-  df |>
-    dplyr::mutate(date = lubridate::dmy(date)) |>
-    dplyr::arrange(date) |>
-    dplyr::mutate(month = lubridate::floor_date(date, "month", week_start = 1)) |>
-    dplyr::group_by(month) |>
-    dplyr::summarise(value = sum(`day-stars`, na.rm = TRUE), .groups = "drop")
-}
-
-vue_m     <- read_dse(csv_vue)     |> dplyr::rename(Vue = value)
-react_m   <- read_dse(csv_react)   |> dplyr::rename(React = value)
-angular_m <- read_dse(csv_angular) |> dplyr::rename(Angular = value)
-
-monthly_wide <- list(vue_m, react_m, angular_m) |>
-  Reduce(function(a,b) dplyr::full_join(a,b, by = "month"), x = _) |>
-  dplyr::arrange(month)
-
-dat <- monthly_wide |>
-  dplyr::rename(period = month) |>
-  dplyr::select(period, React, Angular, Vue)
+# 4) Official GitHub daily history, already aggregated to completed months.
+dat <- readr::read_csv(monthly_csv, show_col_types = FALSE) |>
+  dplyr::mutate(period = as.Date(period)) |>
+  dplyr::select(period, framework, new_stars) |>
+  tidyr::pivot_wider(names_from = framework, values_from = new_stars) |>
+  dplyr::arrange(period)
 
 cols <- intersect(c("React","Angular","Vue"), names(dat))
 stopifnot(length(cols) > 0)

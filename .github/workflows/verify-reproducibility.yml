@@ -1,0 +1,36 @@
+name: Verify isolated Docker bootstrap
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'Dockerfile*'
+      - 'compose.reproducibility.yaml'
+      - 'tools/*reproducibility*'
+      - 'tools/verify-isolated-stack.mjs'
+      - 'tools/research-snapshot*'
+      - 'tools/local-ingestion-smoke.mjs'
+      - 'packages/**'
+      - 'apps/**'
+      - 'src/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.dockerignore'
+      - '.github/workflows/verify-reproducibility.yml'
+permissions:
+  contents: read
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tools/research-snapshot-validation.test.mjs
+      - run: node tools/verify-docker-reproducibility.mjs --no-cache
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: docker-bootstrap-report
+          path: output/reproducibility/

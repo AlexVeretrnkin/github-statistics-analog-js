@@ -3,6 +3,7 @@ import {
   bigint,
   check,
   date,
+  doublePrecision,
   foreignKey,
   index,
   integer,
@@ -106,6 +107,130 @@ export const npmDownloadMonthly = pgTable(
   (table) => [
     primaryKey({ columns: [table.package, table.period] }),
     check('npm_download_monthly_downloads_nonnegative', sql`${table.downloads} >= 0`),
+  ],
+);
+
+export const googleTrendsWeeklyStaging = pgTable(
+  'google_trends_weekly_staging',
+  {
+    runId: uuid('run_id')
+      .notNull()
+      .references(() => researchPipelineRuns.id, { onDelete: 'cascade' }),
+    batchNumber: integer('batch_number').notNull(),
+    framework: text('framework').notNull(),
+    date: date('date', { mode: 'string' }).notNull(),
+    interest: doublePrecision('interest').notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.runId, table.framework, table.date] }),
+    foreignKey({
+      columns: [table.runId, table.batchNumber],
+      foreignColumns: [researchIngestionBatches.runId, researchIngestionBatches.batchNumber],
+      name: 'google_trends_staging_batch_fk',
+    }),
+    check(
+      'google_trends_weekly_staging_interest_range',
+      sql`${table.interest} >= 0 AND ${table.interest} <= 100`,
+    ),
+  ],
+);
+
+export const googleTrendsWeekly = pgTable(
+  'google_trends_weekly',
+  {
+    framework: text('framework').notNull(),
+    date: date('date', { mode: 'string' }).notNull(),
+    interest: doublePrecision('interest').notNull(),
+    lastRunId: uuid('last_run_id')
+      .notNull()
+      .references(() => researchPipelineRuns.id),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.framework, table.date] }),
+    check(
+      'google_trends_weekly_interest_range',
+      sql`${table.interest} >= 0 AND ${table.interest} <= 100`,
+    ),
+  ],
+);
+
+export const googleTrendsMonthly = pgTable(
+  'google_trends_monthly',
+  {
+    framework: text('framework').notNull(),
+    period: date('period', { mode: 'string' }).notNull(),
+    interest: doublePrecision('interest').notNull(),
+    lastRunId: uuid('last_run_id')
+      .notNull()
+      .references(() => researchPipelineRuns.id),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.framework, table.period] }),
+    check(
+      'google_trends_monthly_interest_range',
+      sql`${table.interest} >= 0 AND ${table.interest} <= 100`,
+    ),
+  ],
+);
+
+export const githubStarDailyStaging = pgTable(
+  'github_star_daily_staging',
+  {
+    runId: uuid('run_id')
+      .notNull()
+      .references(() => researchPipelineRuns.id, { onDelete: 'cascade' }),
+    batchNumber: integer('batch_number').notNull(),
+    repository: text('repository').notNull(),
+    framework: text('framework').notNull(),
+    date: date('date', { mode: 'string' }).notNull(),
+    newStars: bigint('new_stars', { mode: 'number' }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.runId, table.repository, table.date] }),
+    foreignKey({
+      columns: [table.runId, table.batchNumber],
+      foreignColumns: [researchIngestionBatches.runId, researchIngestionBatches.batchNumber],
+      name: 'github_star_staging_batch_fk',
+    }),
+    check('github_star_daily_staging_new_stars_nonnegative', sql`${table.newStars} >= 0`),
+  ],
+);
+
+export const githubStarDaily = pgTable(
+  'github_star_daily',
+  {
+    repository: text('repository').notNull(),
+    framework: text('framework').notNull(),
+    date: date('date', { mode: 'string' }).notNull(),
+    newStars: bigint('new_stars', { mode: 'number' }).notNull(),
+    lastRunId: uuid('last_run_id')
+      .notNull()
+      .references(() => researchPipelineRuns.id),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.repository, table.date] }),
+    check('github_star_daily_new_stars_nonnegative', sql`${table.newStars} >= 0`),
+  ],
+);
+
+export const githubStarMonthly = pgTable(
+  'github_star_monthly',
+  {
+    repository: text('repository').notNull(),
+    framework: text('framework').notNull(),
+    period: date('period', { mode: 'string' }).notNull(),
+    newStars: bigint('new_stars', { mode: 'number' }).notNull(),
+    lastRunId: uuid('last_run_id')
+      .notNull()
+      .references(() => researchPipelineRuns.id),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.repository, table.period] }),
+    check('github_star_monthly_new_stars_nonnegative', sql`${table.newStars} >= 0`),
   ],
 );
 

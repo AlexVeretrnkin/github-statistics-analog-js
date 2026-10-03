@@ -2,6 +2,18 @@
 
 This project was generated with [Analog](https://analogjs.org), the fullstack meta-framework for Angular.
 
+## Research access and reproducibility
+
+The [public research dashboard](https://github-statistics-analog-js-1097704636754.europe-west1.run.app/framework-popularity)
+provides access to the deployed application and its current observations. It is
+a live demonstration, not an immutable archive of the article's experiment.
+
+See [the reproducibility guide](docs/reproducibility.md) for an isolated Docker
+bootstrap check, read-only database snapshots, integrity checks, and the
+remaining gates before publishing an archival research release. Original code
+is MIT-licensed; external data and manuscripts are excluded (see
+[licensing scope](LICENSE-SCOPE.md)). Full FAIR compliance is not claimed.
+
 ## Setup
 
 This repository is a pnpm workspace monorepo. Run `pnpm install` to install all workspace
@@ -80,19 +92,36 @@ After installing the documented R dependencies, `pnpm local:pipeline:npm` runs t
 collector and publisher against the local ingestion API. On a fresh database it backfills from
 2015 and therefore takes considerably longer than `local:smoke`.
 
+`pnpm local:pipeline:trends` runs the real rolling five-year Google Trends collector and
+publisher against the same local ingestion service.
+
+`pnpm local:pipeline:stars` fetches the complete GitHub star history, reconciles it with the
+archived Daily Stars Explorer files, and publishes the validated daily history through the same
+staging and commit path.
+
 Compare the canonical database rows produced by that run with the original archived CSV output:
 
 ```bash
 pnpm local:compare:npm
 pnpm local:compare:npm:strict
+pnpm local:compare:stars
+pnpm local:compare:stars:strict
 ```
 
-The comparison checks both daily observations and monthly aggregates over each package's common
-date range. The normal command prints coverage and representative differences; the strict command
-also exits unsuccessfully when a row is missing, extra, or has a different download count. Data
-outside the common range is reported as coverage rather than treated as a mismatch; having no
-common coverage is a strict-mode error. Run the comparison before `pnpm local:smoke` when you need
-an uncontaminated real-data result, because the smoke command deliberately inserts synthetic
+After a real Google Trends run, reconcile its exact RDS payload and independently derived monthly
+averages with PostgreSQL:
+
+```bash
+pnpm local:compare:trends
+pnpm local:compare:trends:strict
+```
+
+The npm and GitHub Stars comparisons check daily observations and completed-month aggregates over
+the common date range. The normal commands print coverage and representative differences; strict
+mode also exits unsuccessfully when a row is missing, extra, or has a different value. Data outside
+the common range is reported as coverage rather than treated as a mismatch; having no common
+coverage is a strict-mode error. Run comparisons before `pnpm local:smoke` when you need an
+uncontaminated real-data result, because the smoke command deliberately inserts synthetic
 observations.
 
 ## Build
@@ -155,23 +184,26 @@ GitHub API responses are cached in a local SQLite database by default:
 ## JavaScript Framework Popularity Research
 
 The consolidated research dashboard is available at `/framework-popularity`. It
-compares React, Angular, and Vue using three archived monthly signals:
+compares React, Angular, and Vue using three monthly signals:
 
 - Google Trends interest in the web-frameworks category
 - npm package downloads
 - new GitHub stars per month
 
 The original R collection, transformation, ARIMA/ETS/Prophet forecasting, diagnostics,
-datasets, and generated evidence live in `research/framework-popularity`. npm is the
-first source migrated to scheduled PostgreSQL ingestion; the remaining signals and
-forecasts continue to use archived inputs during the migration.
+datasets, and generated evidence live in `research/framework-popularity`. npm and
+Google Trends and GitHub stars use scheduled PostgreSQL ingestion. GitHub daily
+history and completed-month sums are committed atomically to canonical database
+tables; CSVs are retained only as research exports and legacy comparison inputs.
 
 Refresh npm, Google Trends, and GitHub stars plus all ARIMA, ETS, and Prophet
-forecasts with `pnpm research:refresh`. Use `pnpm research:refresh:stars` for the
-GitHub snapshot source alone. Use `pnpm research:setup` once to install the required
-R packages. The `Ingest npm downloads` GitHub Actions workflow now publishes validated
-npm batches to an IAM-protected Cloud Run ingestion endpoint using OIDC. The legacy CSV
-workflow is manual-only.
+forecasts with `pnpm research:refresh`. Use `pnpm local:pipeline:stars` for the
+database-backed GitHub collector/publisher and `pnpm local:compare:stars` to reconcile
+PostgreSQL with the former archived histories. Use `pnpm research:setup` once to install the required
+R packages. The `Ingest npm downloads`, `Ingest Google Trends`, and `Ingest GitHub stars`
+GitHub Actions workflows
+publish validated batches to an IAM-protected Cloud Run ingestion endpoint using OIDC. The
+legacy CSV workflow is manual-only.
 
 The complete design, schema, authentication flow, endpoint contract, deployment setup,
 failure behavior, and migration roadmap are documented in

@@ -3,6 +3,9 @@
 # Durable history lives behind the ingestion API. This script writes only an
 # ephemeral RDS handoff file for the later, freshly authenticated publish step.
 
+project_library <- file.path(getwd(), ".r-library")
+if (dir.exists(project_library)) .libPaths(c(project_library, .libPaths()))
+
 required_packages <- c("httr", "jsonlite", "dplyr", "tidyr", "purrr", "tibble")
 missing_packages <- required_packages[
   !vapply(required_packages, requireNamespace, logical(1), quietly = TRUE)

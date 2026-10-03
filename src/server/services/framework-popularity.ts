@@ -1,8 +1,12 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
+  listGitHubStarsMonthly,
+  listGoogleTrendsMonthly,
   listNpmMonthlyDownloads,
+  type GitHubStarsMonthlyDatabaseRow,
+  type GoogleTrendsMonthlyDatabaseRow,
   type NpmMonthlyDatabaseRow,
 } from '@github-statistics/research-database/read';
 
@@ -28,7 +32,7 @@ const NPM_PACKAGE_TO_FRAMEWORK: Record<string, FrameworkName> = {
   vue: 'Vue',
 };
 
-const GITHUB_FILES: Record<FrameworkName, string> = {
+const GITHUB_LEGACY_FILES: Record<FrameworkName, string> = {
   React: 'facebook_react-stars-history.csv',
   Angular: 'angular_angular-stars-history.csv',
   Vue: 'vuejs_core-stars-history.csv',
@@ -52,8 +56,8 @@ export async function getFrameworkPopularityResearch(): Promise<FrameworkPopular
       provenanceNotes: [
         'Google Trends values are monthly averages of the web-frameworks category (31) series collected by the research scripts.',
         'npm values are monthly package downloads for react, @angular/core, and vue.',
-        'GitHub stars in the current chart are monthly additions aggregated from the archived daily histories. Their upstream origin remains for a later provenance review.',
-        'New first-party GitHub totals are stored as monthly snapshots. Net growth is derived only between real snapshots and is not spliced across the legacy-data gap.',
+        'GitHub values are privacy-safe daily star-history bucket counts from GitHub\'s REST endpoint, summed into completed calendar months; historical buckets may be restated after unstars or account removals.',
+        'The official GitHub history is reconciled against the former archived histories only over their common date range; the legacy files are not used as production inputs.',
       ],
     };
   }
@@ -62,22 +66,78 @@ export async function getFrameworkPopularityResearch(): Promise<FrameworkPopular
     return cachedResearch;
   }
 
-  const npmRows = await listNpmMonthlyDownloads();
+  const [githubStarsRows, googleTrendsRows, npmRows] = await Promise.all([
+    listGitHubStarsMonthly(),
+    listGoogleTrendsMonthly(),
+    listNpmMonthlyDownloads(),
+  ]);
 
-  if (npmRows.length === 0) {
+  if (githubStarsRows.length === 0 && googleTrendsRows.length === 0 && npmRows.length === 0) {
     return cachedResearch;
   }
 
-  const metrics = cachedResearch.metrics.map((metric) =>
-    metric.id === 'npm-downloads'
-      ? buildNpmMetricFromDatabase(metric, npmRows)
-      : metric,
-  );
+  const metrics = cachedResearch.metrics.map((metric) => {
+    if (metric.id === 'google-trends' && googleTrendsRows.length > 0) {
+      return buildGoogleTrendsMetricFromDatabase(metric, googleTrendsRows);
+    }
+    if (metric.id === 'npm-downloads' && npmRows.length > 0) {
+      return buildNpmMetricFromDatabase(metric, npmRows);
+    }
+    if (metric.id === 'github-stars' && githubStarsRows.length > 0) {
+      return buildGithubStarsMetricFromDatabase(metric, githubStarsRows);
+    }
+    return metric;
+  });
 
   return {
     ...cachedResearch,
     generatedAt: getLatestDate(metrics),
     metrics,
+  };
+}
+
+function buildGithubStarsMetricFromDatabase(
+  generatedMetric: FrameworkPopularityMetric,
+  rows: GitHubStarsMonthlyDatabaseRow[],
+): FrameworkPopularityMetric {
+  const pointsByFramework = createPointBuckets();
+  for (const row of rows) {
+    if (!isCompletedCalendarMonth(row.period)) {
+      continue;
+    }
+    pointsByFramework[row.framework].push({
+      date: monthKey(row.period),
+      value: row.newStars,
+    });
+  }
+
+  return {
+    ...generatedMetric,
+    sourceLabel: 'GitHub REST API · scheduled database ingestion',
+    series: seriesFromBuckets(pointsByFramework),
+  };
+}
+
+function buildGoogleTrendsMetricFromDatabase(
+  archivedMetric: FrameworkPopularityMetric,
+  rows: GoogleTrendsMonthlyDatabaseRow[],
+): FrameworkPopularityMetric {
+  const pointsByFramework = createPointBuckets();
+
+  for (const row of rows) {
+    if (!isCompletedCalendarMonth(row.period)) {
+      continue;
+    }
+    pointsByFramework[row.framework].push({
+      date: monthKey(row.period),
+      value: row.interest,
+    });
+  }
+
+  return {
+    ...archivedMetric,
+    sourceLabel: 'Google Trends · scheduled database ingestion · category 31',
+    series: seriesFromBuckets(pointsByFramework),
   };
 }
 
@@ -94,10 +154,12 @@ function buildGoogleTrendsMetric(): FrameworkPopularityMetric {
     forecasts: [],
     series: FRAMEWORKS.map((framework) => ({
       framework,
-      points: rows.map((row) => ({
-        date: monthKey(requireCell(row, 'date')),
-        value: parseNumber(requireCell(row, framework)),
-      })),
+      points: rows
+        .filter((row) => isCompletedCalendarMonth(requireCell(row, 'date')))
+        .map((row) => ({
+          date: monthKey(requireCell(row, 'date')),
+          value: parseNumber(requireCell(row, framework)),
+        })),
     })),
   };
 }
@@ -107,6 +169,9 @@ function buildNpmMetric(): FrameworkPopularityMetric {
   const pointsByFramework = createPointBuckets();
 
   for (const row of rows) {
+    if (!isCompletedCalendarMonth(requireCell(row, 'period'))) {
+      continue;
+    }
     const framework = NPM_PACKAGE_TO_FRAMEWORK[requireCell(row, 'package')];
 
     if (!framework) {
@@ -138,6 +203,9 @@ function buildNpmMetricFromDatabase(
   const pointsByFramework = createPointBuckets();
 
   for (const row of rows) {
+    if (!isCompletedCalendarMonth(row.period)) {
+      continue;
+    }
     const framework = NPM_PACKAGE_TO_FRAMEWORK[row.package];
 
     if (!framework) {
@@ -158,23 +226,61 @@ function buildNpmMetricFromDatabase(
 }
 
 function buildGithubStarsMetric(): FrameworkPopularityMetric {
+  const officialPath = join(RESEARCH_ROOT, 'out/github_stars_monthly.csv');
+  if (!existsSync(officialPath)) {
+    return buildLegacyGithubStarsMetric();
+  }
+
+  const rows = readCsv('out/github_stars_monthly.csv');
+  const pointsByFramework = createPointBuckets();
+
+  for (const row of rows) {
+    if (!isCompletedCalendarMonth(requireCell(row, 'period'))) {
+      continue;
+    }
+    const framework = requireCell(row, 'framework') as FrameworkName;
+    if (!FRAMEWORKS.includes(framework)) {
+      continue;
+    }
+    pointsByFramework[framework].push({
+      date: monthKey(requireCell(row, 'period')),
+      value: parseNumber(requireCell(row, 'new_stars')),
+    });
+  }
+
+  return {
+    id: 'github-stars',
+    label: 'GitHub stars',
+    unit: 'new stars / month',
+    sourceLabel: 'GitHub REST API · repository star history',
+    description: 'Monthly additions to the main React, Angular, and Vue repositories.',
+    methodology: 'GitHub returns privacy-safe daily counts in weekly buckets. The pipeline validates those buckets and sums daily new stars into completed calendar months.',
+    forecasts: [],
+    series: seriesFromBuckets(pointsByFramework),
+  };
+}
+
+function buildLegacyGithubStarsMetric(): FrameworkPopularityMetric {
   const pointsByFramework = createPointBuckets();
 
   for (const framework of FRAMEWORKS) {
-    const rows = readCsv(join('git_stars', GITHUB_FILES[framework]));
+    const rows = readCsv(join('git_stars', GITHUB_LEGACY_FILES[framework]));
     const totalsByMonth = new Map<string, number>();
-
     for (const row of rows) {
-      const dateParts = requireCell(row, 'date').split('-');
-      const month = `${dateParts[2]}-${dateParts[1]}`;
+      const [day, month, year] = requireCell(row, 'date').split('-');
+      if (!day || !month || !year) {
+        throw new Error('Invalid legacy GitHub star date.');
+      }
+      const key = `${year}-${month}`;
+      if (!isCompletedCalendarMonth(key)) {
+        continue;
+      }
       totalsByMonth.set(
-        month,
-        (totalsByMonth.get(month) ?? 0) + parseNumber(requireCell(row, 'day-stars')),
+        key,
+        (totalsByMonth.get(key) ?? 0) + parseNumber(requireCell(row, 'day-stars')),
       );
     }
-
-    pointsByFramework[framework] = [...totalsByMonth.entries()]
-      .sort(([left], [right]) => left.localeCompare(right))
+    pointsByFramework[framework] = [...totalsByMonth]
       .map(([date, value]) => ({ date, value }));
   }
 
@@ -182,9 +288,9 @@ function buildGithubStarsMetric(): FrameworkPopularityMetric {
     id: 'github-stars',
     label: 'GitHub stars',
     unit: 'new stars / month',
-    sourceLabel: 'Archived GitHub star histories',
+    sourceLabel: 'Legacy GitHub star histories · pending first official refresh',
     description: 'Monthly additions to the main React, Angular, and Vue repositories.',
-    methodology: 'Daily star additions from the archived histories are summed by calendar month. Data-origin discussion is deferred.',
+    methodology: 'Temporary compatibility fallback until the first official GitHub star-history refresh is published.',
     forecasts: [],
     series: seriesFromBuckets(pointsByFramework),
   };
@@ -288,6 +394,10 @@ function parseNullableNumber(value: string): number | null {
 
 function monthKey(value: string): string {
   return value.slice(0, 7);
+}
+
+export function isCompletedCalendarMonth(value: string, today = new Date()): boolean {
+  return monthKey(value) < today.toISOString().slice(0, 7);
 }
 
 function createPointBuckets(): Record<FrameworkName, FrameworkPopularityPoint[]> {

@@ -23,8 +23,8 @@ if (!validate_only) {
   if (source_name %in% c("all", "google")) source("refresh_google_trends.R", local = new.env())
   if (source_name %in% c("all", "github")) source("refresh_github_stars.R", local = new.env())
 
-  # Forecasts depend on all three archived inputs, so regenerate them after any
-  # source refresh. `--source=none` is the forecasts-only command.
+  # Forecasts depend on all three canonical monthly inputs, so regenerate them
+  # after any source refresh. `--source=none` is the forecasts-only command.
   source("export_forecasts.R", local = new.env())
 }
 

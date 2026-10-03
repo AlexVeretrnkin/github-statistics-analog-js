@@ -25,6 +25,20 @@ describe('ingestion API transport', () => {
     );
 
     expect(response).toEqual({ body: { error: 'Expected an ISO date.' }, status: 400 });
+
+    const trendsResponse = await request(
+      'POST',
+      '/api/internal/v1/ingestions/google-trends/runs',
+      JSON.stringify({ schemaVersion: 1, sourceDataThrough: 'not-a-date' }),
+    );
+    expect(trendsResponse).toEqual({ body: { error: 'Expected an ISO date.' }, status: 400 });
+
+    const githubStarsResponse = await request(
+      'POST',
+      '/api/internal/v1/ingestions/github-stars/runs',
+      JSON.stringify({ schemaVersion: 1, sourceDataThrough: 'not-a-date' }),
+    );
+    expect(githubStarsResponse).toEqual({ body: { error: 'Expected an ISO date.' }, status: 400 });
   });
 });
 

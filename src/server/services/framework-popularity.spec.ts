@@ -1,4 +1,7 @@
-import { getFrameworkPopularityResearch } from './framework-popularity';
+import {
+  getFrameworkPopularityResearch,
+  isCompletedCalendarMonth,
+} from './framework-popularity';
 
 describe('framework popularity research', () => {
   it('normalizes all three archived signals for React, Angular, and Vue', async () => {
@@ -26,10 +29,18 @@ describe('framework popularity research', () => {
     }
   });
 
-  it('keeps GitHub-star provenance explicitly deferred', async () => {
+  it('reports the official GitHub star-history provenance', async () => {
     const research = await getFrameworkPopularityResearch();
 
-    expect(research.provenanceNotes.some((note) => note.includes('later provenance review')))
+    expect(research.provenanceNotes.some((note) => note.includes('privacy-safe')))
       .toBe(true);
+  });
+
+  it('accepts only months completed before the current UTC month', () => {
+    const today = new Date('2026-09-19T12:00:00.000Z');
+
+    expect(isCompletedCalendarMonth('2026-08-01', today)).toBe(true);
+    expect(isCompletedCalendarMonth('2026-09-01', today)).toBe(false);
+    expect(isCompletedCalendarMonth('2026-10-01', today)).toBe(false);
   });
 });

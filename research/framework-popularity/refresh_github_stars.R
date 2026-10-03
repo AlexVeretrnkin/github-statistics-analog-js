@@ -1,10 +1,9 @@
-# Collect first-party GitHub star-count snapshots for React, Angular, and Vue.
+# Collect the complete first-party GitHub star history for React, Angular, and Vue.
 #
-# GitHub's public repository endpoint exposes the current stargazer count, but
-# does not expose when every public user starred an external repository. We keep
-# one observation per repository/month and derive explicitly labelled net growth
-# only between real snapshots. Archived daily additions remain a separate legacy
-# dataset and are used here only for an overlap QA comparison.
+# GitHub's privacy-safe endpoint returns 30 calendar weeks per page with seven
+# daily counts in each week. Every refresh replaces the complete daily history,
+# derives completed calendar-month totals, and reconciles the official series
+# with the archived Daily Stars Explorer CSVs on their common date range.
 
 required_packages <- c("httr", "jsonlite", "readr", "dplyr", "lubridate", "tibble")
 missing_packages <- required_packages[
@@ -17,195 +16,120 @@ if (length(missing_packages) > 0) {
   )
 }
 
+source("github_star_history.R", local = environment())
+
 repositories <- tibble::tribble(
-  ~framework, ~repository,       ~archive_file,
-  "React",    "facebook/react", "facebook_react-stars-history.csv",
-  "Angular",  "angular/angular", "angular_angular-stars-history.csv",
-  "Vue",      "vuejs/core",     "vuejs_core-stars-history.csv"
+  ~framework, ~repository,        ~archive_file,
+  "React",    "facebook/react",   "facebook_react-stars-history.csv",
+  "Angular",  "angular/angular",  "angular_angular-stars-history.csv",
+  "Vue",      "vuejs/core",       "vuejs_core-stars-history.csv"
 )
 
-snapshot_path <- "out/github_star_snapshots.csv"
-growth_path <- "out/github_star_growth_monthly.csv"
+daily_path <- "out/github_stars_daily.csv"
+monthly_path <- "out/github_stars_monthly.csv"
 qa_path <- "out/github_star_qa.csv"
+legacy_qa_path <- "out/github_star_legacy_qa.csv"
 api_root <- Sys.getenv("RESEARCH_GITHUB_API_URL", "https://api.github.com")
+api_version <- Sys.getenv("RESEARCH_GITHUB_API_VERSION", "2026-03-10")
 github_token <- Sys.getenv("GITHUB_TOKEN", Sys.getenv("GH_TOKEN", ""))
+verify_current_counts <- tolower(
+  Sys.getenv("RESEARCH_GITHUB_VERIFY_CURRENT_COUNTS", "true")
+) == "true"
 today <- as.Date(Sys.getenv("RESEARCH_TODAY", as.character(Sys.Date())))
-observed_at <- format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
-observation_month <- lubridate::floor_date(today, "month")
+fetched_at <- format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
 
-write_csv_atomic <- function(data, path) {
-  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-  temporary_path <- tempfile(pattern = paste0(basename(path), "."), tmpdir = dirname(path))
-  readr::write_csv(data, temporary_path)
-  if (!file.rename(temporary_path, path)) {
-    unlink(temporary_path)
-    stop("Could not atomically replace ", path)
-  }
-}
-
-github_headers <- function() {
-  headers <- c(
-    Accept = "application/vnd.github+json",
-    `X-GitHub-Api-Version` = "2022-11-28"
+collected <- lapply(seq_len(nrow(repositories)), function(index) {
+  tracked <- repositories[index, ]
+  history <- fetch_github_star_history(
+    framework = tracked$framework,
+    repository = tracked$repository,
+    api_root = api_root,
+    token = github_token,
+    api_version = api_version,
+    today = today,
+    fetched_at = fetched_at
   )
-  if (nzchar(github_token)) headers <- c(headers, Authorization = paste("Bearer", github_token))
-  do.call(httr::add_headers, as.list(headers))
-}
-
-fetch_repository <- function(repository, retries = 6) {
-  url <- paste0(sub("/$", "", api_root), "/repos/", repository)
-
-  for (attempt in seq_len(retries)) {
-    response <- try(
-      httr::GET(
-        url,
-        github_headers(),
-        httr::user_agent("github-statistics-analog-js research collector/1.0"),
-        httr::timeout(60)
-      ),
-      silent = TRUE
+  current_count <- if (verify_current_counts) {
+    fetch_github_stargazer_count(
+      repository = tracked$repository,
+      api_root = api_root,
+      token = github_token,
+      api_version = api_version
     )
+  } else {
+    NA_real_
+  }
+  list(
+    rows = history$rows,
+    pages = history$pages,
+    current_count = current_count,
+    archive_file = tracked$archive_file
+  )
+})
 
-    if (!inherits(response, "try-error") && httr::status_code(response) == 200) {
-      payload <- jsonlite::fromJSON(
-        httr::content(response, as = "text", encoding = "UTF-8"),
-        simplifyVector = TRUE
-      )
-      count <- suppressWarnings(as.numeric(payload$stargazers_count))
-      if (!is.finite(count) || count < 0) stop("GitHub returned an invalid star count for ", repository)
-      return(count)
-    }
+daily <- dplyr::bind_rows(lapply(collected, `[[`, "rows")) |>
+  dplyr::arrange(framework, date)
+monthly <- aggregate_github_stars_monthly(daily, today)
 
-    status <- if (inherits(response, "try-error")) NA_integer_ else httr::status_code(response)
-    retry_after <- if (!inherits(response, "try-error")) {
-      suppressWarnings(as.numeric(httr::headers(response)[["retry-after"]]))
+qa <- dplyr::bind_rows(lapply(seq_along(collected), function(index) {
+  item <- collected[[index]]
+  rows <- item$rows
+  history_total <- sum(rows$new_stars)
+  count_difference <- if (is.finite(item$current_count)) history_total - item$current_count else NA_real_
+  tibble::tibble(
+    framework = repositories$framework[[index]],
+    repository = repositories$repository[[index]],
+    history_start = min(rows$date),
+    history_through = max(rows$date),
+    daily_rows = nrow(rows),
+    api_pages = item$pages,
+    history_total = history_total,
+    current_stargazer_count = item$current_count,
+    count_difference = count_difference,
+    fetched_at = fetched_at,
+    api_version = api_version,
+    status = if (!is.finite(item$current_count)) {
+      "not-checked"
+    } else if (abs(count_difference) <= 2) {
+      "ok"
     } else {
-      NA_real_
+      "review"
     }
-    retryable <- is.na(status) || status == 429 || status >= 500
-    if (!retryable) {
-      detail <- if (!inherits(response, "try-error")) {
-        substr(httr::content(response, as = "text", encoding = "UTF-8"), 1, 240)
-      } else {
-        as.character(response)
-      }
-      stop("GitHub request failed for ", repository, " (HTTP ", status, "): ", detail)
-    }
-
-    wait_seconds <- if (is.finite(retry_after)) retry_after else min(60, 2 ^ attempt)
-    message("GitHub attempt ", attempt, " failed for ", repository, "; retrying in ", wait_seconds, "s")
-    Sys.sleep(wait_seconds)
-  }
-
-  stop("GitHub request failed after retries for ", repository)
-}
-
-fresh <- repositories |>
-  dplyr::rowwise() |>
-  dplyr::mutate(total_stars = fetch_repository(repository)) |>
-  dplyr::ungroup() |>
-  dplyr::transmute(
-    month = observation_month,
-    snapshot_date = today,
-    framework,
-    repository,
-    total_stars = as.numeric(total_stars),
-    observed_at = observed_at,
-    source = "github-rest-repository"
   )
+}))
 
-existing <- if (file.exists(snapshot_path)) {
-  readr::read_csv(
-    snapshot_path,
-    col_types = readr::cols(observed_at = readr::col_character()),
-    show_col_types = FALSE
-  ) |>
-    dplyr::mutate(
-      month = as.Date(month),
-      snapshot_date = as.Date(snapshot_date),
-      total_stars = as.numeric(total_stars),
-      observed_at = as.character(observed_at),
-      source = as.character(source)
-    )
-} else {
-  fresh[0, ]
-}
-
-# A rerun during the same month replaces that month's observation. This makes
-# local retries idempotent while retaining one comparable point per month.
-snapshots <- dplyr::bind_rows(existing, fresh) |>
-  dplyr::filter(repository %in% repositories$repository) |>
-  dplyr::arrange(repository, month, observed_at) |>
-  dplyr::group_by(repository, month) |>
-  dplyr::slice_tail(n = 1) |>
-  dplyr::ungroup() |>
-  dplyr::arrange(framework, month)
-
-growth <- snapshots |>
-  dplyr::group_by(framework, repository) |>
-  dplyr::arrange(month, .by_group = TRUE) |>
-  dplyr::mutate(
-    from_date = dplyr::lag(snapshot_date),
-    to_date = snapshot_date,
-    net_stars = total_stars - dplyr::lag(total_stars),
-    days_covered = as.integer(snapshot_date - dplyr::lag(snapshot_date))
-  ) |>
-  dplyr::filter(!is.na(net_stars)) |>
-  dplyr::ungroup() |>
-  dplyr::transmute(
-    period = month,
-    framework,
-    repository,
-    net_stars,
-    from_date,
-    to_date,
-    days_covered,
-    source = "github-count-snapshot-delta"
-  ) |>
-  dplyr::arrange(framework, period)
-
-read_archive_latest <- function(archive_file) {
-  path <- file.path("git_stars", archive_file)
-  rows <- readr::read_csv(path, show_col_types = FALSE) |>
-    dplyr::mutate(date = lubridate::dmy(date), `total-stars` = as.numeric(`total-stars`)) |>
-    dplyr::filter(!is.na(date), is.finite(`total-stars`)) |>
-    dplyr::arrange(date)
-  if (nrow(rows) == 0) stop("Archived GitHub star history is empty: ", path)
-  rows[nrow(rows), c("date", "total-stars")]
-}
-
-qa <- repositories |>
-  dplyr::rowwise() |>
-  dplyr::mutate(archive_latest = list(read_archive_latest(archive_file))) |>
-  dplyr::ungroup() |>
-  dplyr::mutate(
-    archived_through = as.Date(vapply(archive_latest, function(row) as.character(row$date[[1]]), character(1))),
-    archived_total = vapply(archive_latest, function(row) row$`total-stars`[[1]], numeric(1))
-  ) |>
-  dplyr::select(-archive_latest) |>
-  dplyr::left_join(
-    fresh |> dplyr::select(framework, repository, snapshot_date, current_total = total_stars),
-    by = c("framework", "repository")
-  ) |>
-  dplyr::mutate(
-    total_delta = current_total - archived_total,
-    days_gap = as.integer(snapshot_date - archived_through),
-    status = dplyr::if_else(total_delta >= 0, "ok", "current-total-below-archive")
-  ) |>
-  dplyr::select(
-    framework, repository, archived_through, archived_total,
-    snapshot_date, current_total, total_delta, days_gap, status
+legacy_qa <- dplyr::bind_rows(lapply(seq_along(collected), function(index) {
+  item <- collected[[index]]
+  official <- item$rows
+  legacy <- read_legacy_github_stars(
+    file.path("git_stars", item$archive_file),
+    repositories$framework[[index]],
+    repositories$repository[[index]]
   )
+  dplyr::bind_rows(
+    compare_github_star_series(official, legacy, "daily"),
+    compare_github_star_series(official, legacy, "monthly")
+  )
+})) |>
+  dplyr::arrange(framework, granularity)
 
-if (any(qa$status != "ok")) {
-  warning("One or more current GitHub totals are below the archived totals; inspect ", qa_path)
+if (any(qa$status == "review")) {
+  warning("One or more GitHub history totals differ materially from the current count; inspect ", qa_path)
+}
+if (any(legacy_qa$status %in% c("no-overlap", "coverage-gap"))) {
+  stop("Official and legacy GitHub histories could not be compared over a complete overlap.")
+}
+if (any(legacy_qa$status == "value-differences")) {
+  message("Official GitHub history differs from the legacy archive; inspect ", legacy_qa_path)
 }
 
-write_csv_atomic(snapshots, snapshot_path)
-write_csv_atomic(growth, growth_path)
+write_csv_atomic(daily, daily_path)
+write_csv_atomic(monthly, monthly_path)
 write_csv_atomic(qa, qa_path)
+write_csv_atomic(legacy_qa, legacy_qa_path)
 
+monthly_through <- if (nrow(monthly) == 0) "none" else as.character(max(monthly$period))
 message(
-  "GitHub stars refresh complete: ", nrow(fresh), " repositories observed for ",
-  observation_month, "; ", nrow(growth), " snapshot-growth rows available."
+  "GitHub stars refresh complete: ", nrow(daily), " daily rows, ",
+  nrow(monthly), " completed monthly rows through ", monthly_through, "."
 )

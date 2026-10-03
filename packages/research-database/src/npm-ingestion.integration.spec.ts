@@ -77,6 +77,29 @@ describeDatabase('npm PostgreSQL ingestion', () => {
     expect(updatedMonthly.find((row) =>
       row.package === 'react' && row.period === '2015-02-01'
     )?.downloads).toBe(28);
+
+    const partialMonthRun = await createNpmIngestionRun({
+      gitSha: 'integration-test-3',
+      metadata: { test: true },
+      schemaVersion: 1,
+      sourceDataThrough: '2015-03-15',
+    });
+    const partialMonthDates = dateRange('2015-02-15', '2015-03-15');
+    const partialMonthRows = NPM_PACKAGES.flatMap((packageName) =>
+      partialMonthDates.map((date) => ({ date, downloads: 1, package: packageName })),
+    );
+
+    await writeNpmIngestionBatch(partialMonthRun.runId, 0, { rows: partialMonthRows });
+    await commitNpmIngestionRun(partialMonthRun.runId);
+
+    expect(await getNpmIngestionCheckpoint()).toMatchObject({
+      activeRunId: partialMonthRun.runId,
+      latestCompletedMonth: '2015-02-01',
+      latestDate: '2015-03-15',
+    });
+    expect((await listNpmMonthlyDownloads()).some((row) =>
+      row.period === '2015-03-01'
+    )).toBe(false);
   });
 });
 

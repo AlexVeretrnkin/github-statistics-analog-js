@@ -2,10 +2,69 @@ import { describe, expect, it } from 'vitest';
 
 import {
   validateBatchNumber,
+  validateCreateGoogleTrendsIngestionRun,
+  validateCreateGitHubStarsIngestionRun,
   validateCreateNpmIngestionRun,
+  validateGoogleTrendsIngestionBatch,
+  validateGitHubStarsIngestionBatch,
   validateNpmIngestionBatch,
   validateRunId,
 } from './index.js';
+
+describe('GitHub stars ingestion validation', () => {
+  it('accepts only tracked repository/framework rows with nonnegative integer counts', () => {
+    expect(validateCreateGitHubStarsIngestionRun({
+      completedMonthBefore: '2026-09-01',
+      schemaVersion: 1,
+      sourceDataThrough: '2026-09-16',
+    })).toMatchObject({ schemaVersion: 1, sourceDataThrough: '2026-09-16' });
+
+    expect(validateGitHubStarsIngestionBatch({
+      rows: [{
+        date: '2026-09-16',
+        framework: 'React',
+        newStars: 42,
+        repository: 'facebook/react',
+      }],
+    }).rows).toHaveLength(1);
+    expect(() => validateGitHubStarsIngestionBatch({
+      rows: [{
+        date: '2026-09-16',
+        framework: 'React',
+        newStars: 42,
+        repository: 'sveltejs/svelte',
+      }],
+    })).toThrow();
+    expect(() => validateGitHubStarsIngestionBatch({
+      rows: [{
+        date: '2026-09-16',
+        framework: 'React',
+        newStars: -1,
+        repository: 'facebook/react',
+      }],
+    })).toThrow();
+  });
+});
+
+describe('Google Trends ingestion validation', () => {
+  it('accepts only tracked frameworks and interest values on the 0-100 scale', () => {
+    expect(validateCreateGoogleTrendsIngestionRun({
+      completedMonthBefore: '2026-08-01',
+      schemaVersion: 1,
+      sourceDataThrough: '2026-08-16',
+    })).toMatchObject({ schemaVersion: 1, sourceDataThrough: '2026-08-16' });
+
+    expect(validateGoogleTrendsIngestionBatch({
+      rows: [{ framework: 'React', date: '2026-08-16', interest: 42.5 }],
+    }).rows).toHaveLength(1);
+    expect(() => validateGoogleTrendsIngestionBatch({
+      rows: [{ framework: 'Svelte', date: '2026-08-16', interest: 42 }],
+    })).toThrow();
+    expect(() => validateGoogleTrendsIngestionBatch({
+      rows: [{ framework: 'React', date: '2026-08-16', interest: 101 }],
+    })).toThrow();
+  });
+});
 
 describe('npm ingestion validation', () => {
   it('normalizes a valid run request', () => {

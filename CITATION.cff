@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "Please cite the exact software release and associated dataset used. A persistent archival identifier has not yet been assigned."
+type: software
+title: "github-statistics-analog-js: Web framework adoption analysis and forecasting"
+authors:
+  - name: "github-statistics-analog-js contributors"
+repository-code: "https://github.com/AlexVeretrnkin/github-statistics-analog-js"
+url: "https://github-statistics-analog-js-1097704636754.europe-west1.run.app/framework-popularity"
+license: MIT
+abstract: "A research application and ingestion system for monthly web-framework indicators and ARIMA, ETS, and Prophet forecasts. The software license does not cover external datasets; see LICENSE-SCOPE.md."
+keywords:
+  - time series
+  - JavaScript frameworks
+  - npm downloads
+  - GitHub stars
+  - reproducible research

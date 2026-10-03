@@ -21,6 +21,10 @@ library(lubridate)
 library(tidyr)
 library(tibble)
 
+source("completed_months.R", local = environment())
+
+FORECAST_TODAY <- research_today()
+
 HORIZON <- 24
 HOLDOUT <- 12
 OUT_FILE <- "out/framework_popularity_forecasts.csv"
@@ -155,7 +159,12 @@ export_series <- function(metric, framework, values, dates, bounded = FALSE, use
 
 # Google Trends monthly interest.
 google <- read_csv("ts_out/gt_ui_5y_monthly_cat31.csv", show_col_types = FALSE) %>%
-  mutate(date = as.Date(date))
+  mutate(date = as.Date(date)) %>%
+  filter_completed_months(
+    "date",
+    "Google Trends forecast input",
+    today = FORECAST_TODAY
+  )
 
 google_forecasts <- bind_rows(lapply(c("React", "Angular", "Vue"), function(framework) {
   export_series("google-trends", framework, google[[framework]], google$date, bounded = TRUE)
@@ -164,7 +173,12 @@ google_forecasts <- bind_rows(lapply(c("React", "Angular", "Vue"), function(fram
 # npm monthly package downloads.
 npm_frameworks <- c("react" = "React", "@angular/core" = "Angular", "vue" = "Vue")
 npm <- read_csv("out/npm_downloads_monthly.csv", show_col_types = FALSE) %>%
-  mutate(period = as.Date(period))
+  mutate(period = as.Date(period)) %>%
+  filter_completed_months(
+    "period",
+    "npm forecast input",
+    today = FORECAST_TODAY
+  )
 
 npm_forecasts <- bind_rows(lapply(names(npm_frameworks), function(package_name) {
   rows <- npm %>% filter(package == package_name) %>% arrange(period)
@@ -177,21 +191,18 @@ npm_forecasts <- bind_rows(lapply(names(npm_frameworks), function(package_name) 
   )
 }))
 
-# GitHub monthly star additions from the archived daily histories.
-github_files <- c(
-  "React" = "git_stars/facebook_react-stars-history.csv",
-  "Angular" = "git_stars/angular_angular-stars-history.csv",
-  "Vue" = "git_stars/vuejs_core-stars-history.csv"
-)
+# GitHub monthly star-history bucket counts from the official privacy-safe endpoint.
+github <- read_csv("out/github_stars_monthly.csv", show_col_types = FALSE) %>%
+  mutate(period = as.Date(period)) %>%
+  filter_completed_months(
+    "period",
+    "GitHub stars forecast input",
+    today = FORECAST_TODAY
+  )
 
-github_forecasts <- bind_rows(lapply(names(github_files), function(framework) {
-  rows <- read_csv(github_files[[framework]], show_col_types = FALSE) %>%
-    mutate(date = dmy(date), month = floor_date(date, "month")) %>%
-    group_by(month) %>%
-    summarise(value = sum(`day-stars`, na.rm = TRUE), .groups = "drop") %>%
-    arrange(month)
-
-  export_series("github-stars", framework, rows$value, rows$month, use_log = TRUE)
+github_forecasts <- bind_rows(lapply(c("React", "Angular", "Vue"), function(framework) {
+  rows <- github %>% filter(.data$framework == framework) %>% arrange(period)
+  export_series("github-stars", framework, rows$new_stars, rows$period, use_log = TRUE)
 }))
 
 forecasts <- bind_rows(google_forecasts, npm_forecasts, github_forecasts) %>%

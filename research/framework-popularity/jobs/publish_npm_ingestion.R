@@ -1,5 +1,8 @@
 # Publish an ephemeral npm ingestion payload through the authenticated server API.
 
+project_library <- file.path(getwd(), ".r-library")
+if (dir.exists(project_library)) .libPaths(c(project_library, .libPaths()))
+
 required_packages <- c("httr", "jsonlite")
 missing_packages <- required_packages[
   !vapply(required_packages, requireNamespace, logical(1), quietly = TRUE)
