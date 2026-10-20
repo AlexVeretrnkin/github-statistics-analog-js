@@ -49,7 +49,7 @@ The ingestion runtime still has its existing database privileges; separate migra
 credentials can be introduced later. Production ingestion sets `RESEARCH_DATABASE_MIGRATIONS=external`
 so neither startup nor request handlers run migrations; the explicit job always runs them.
 
-## What to do when back at the laptop
+## Activation and recovery checklist
 
 1. **Provide authenticated GitHub access.** Connect GitHub to Codex or install/authenticate GitHub CLI
    with `gh auth login`. No Google Cloud key or token needs to be copied into GitHub.
@@ -99,23 +99,22 @@ and repair the schema before routing traffic to that code. Preserve old revision
 for recovery. Interrupting a GitHub runner during promotion may prevent automated rollback; use the
 saved traffic allocations manually in that case.
 
-## Validation
+## Validation and first release
 
-Passed locally: application tests (18 existing tests plus 2 migration-mode tests), both native builds,
-Drizzle migration checks, 11 snapshot checks, all 6 deployment-script tests, and actionlint workflow
-validation. Three existing database integration specs skip without their opt-in database environment;
-the isolated Docker workflow provides the release gate for database/container integration.
+The protected PR and merged commit passed all required GitHub-hosted checks on 2026-10-20,
+including native builds, unit tests, Drizzle checks, deployment/rollback simulations, and the full
+isolated Docker integration test. This resolves the earlier local Docker resource-contention
+limitation. Workload Identity Federation, registry publication, and the production migration job
+were also verified in the first release attempt.
 
-The full Docker integration run was stopped during web compilation after prolonged local Docker
-resource contention; it is **not verified**. A smaller check using the successfully built ingestion/migration images also timed out waiting
-for dependencies. Neither container integration result is claimed as passing. Temporary test
-containers and the disposable database volume were cleaned up.
-The first attempt also encountered a waiting Docker Desktop credential helper; the retry used an
-isolated anonymous Docker configuration. Run the GitHub container integration check successfully
-before activating deployment. The local Google user lacks deployer impersonation permission, so
-live deployer authentication must also be verified through the first GitHub WIF run. No additional
-human impersonation permission was granted.
+That attempt stopped before traffic promotion because `/healthz` received a Google Frontend 404;
+the authenticated checkpoint route on the same candidate returned 200. Probes now use `/health`.
+The old `/healthz` handler remains as a local compatibility alias, but is not used for deployment.
 
-GitHub-hosted execution and real production rollout remain to be verified after publication and activation. The deployment orchestration
-tests use a fake gcloud executable and a temporary HTTP server to exercise successful release,
-migration failure, candidate failure, and rollback after production checks fail, without cloud changes.
+The `production` environment is restricted to `main`, branch protection requires both CI checks,
+and `GCP_DEPLOY_ENABLED` is enabled. Neon backups were confirmed by the owner. The deployment
+identity has no human impersonation grant; GitHub uses the configured federation provider.
+
+For the current release result, consult the latest [CI and deployment run](https://github.com/AlexVeretrnkin/github-statistics-analog-js/actions/workflows/ci-cd.yml)
+and its deployment artifact. A successful pipeline includes candidate and post-promotion smoke
+checks; a failed pipeline must be investigated before claiming a release succeeded.

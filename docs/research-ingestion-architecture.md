@@ -496,7 +496,7 @@ Keep both database URLs in GCP Secret Manager and expose each only to its corres
 Do not put either URL in GitHub.
 
 The public image contains no ingestion route implementation. The private service is protected by
-Cloud Run IAM and responds only to `/healthz` and the versioned ingestion contract.
+Cloud Run IAM and responds only to `/health` and the versioned ingestion contract.
 
 ### Read-only database role
 

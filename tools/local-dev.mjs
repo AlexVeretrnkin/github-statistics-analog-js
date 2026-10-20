@@ -50,7 +50,7 @@ const ingestion = spawn('node', ['apps/ingestion-api/dist/index.js'], {
   stdio: 'inherit',
 });
 
-await waitForHealth(`http://127.0.0.1:${ingestionPort}/healthz`, ingestion);
+await waitForHealth(`http://127.0.0.1:${ingestionPort}/health`, ingestion);
 
 const web = spawn('pnpm', ['exec', 'vite', '--host', '127.0.0.1', '--port', webPort], {
   env: {
