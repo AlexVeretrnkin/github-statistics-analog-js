@@ -157,6 +157,12 @@ The web app is available at `http://localhost:8080`; the ingestion API is availa
 
 Run `pnpm test` to run the browser/server and workspace Node tests with [Vitest](https://vitest.dev).
 
+## CI/CD
+
+Pull requests and pushes to `main` run tests, builds, and isolated Docker integration checks.
+Production deployment to Cloud Run is gated by the `GCP_DEPLOY_ENABLED` GitHub repository variable.
+See the [activation checklist and rollback runbook](docs/ci-cd.md) before enabling it.
+
 ## GitHub GraphQL
 
 The project exposes an Analog server route at `/api/v1/issues` that proxies requests to the GitHub GraphQL API. Example:
