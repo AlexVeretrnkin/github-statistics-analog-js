@@ -89,7 +89,7 @@ async function deploy() {
         '--audiences', service.url, '--include-email'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }).trim();
       headers.Authorization = `Bearer ${token}`;
     }
-    const paths = service.private ? ['/healthz',
+    const paths = service.private ? ['/health',
       '/api/internal/v1/ingestions/npm-downloads/checkpoint',
       '/api/internal/v1/ingestions/google-trends/checkpoint',
       '/api/internal/v1/ingestions/github-stars/checkpoint'] : ['/framework-popularity'];

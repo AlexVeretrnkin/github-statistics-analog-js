@@ -19,7 +19,7 @@ For local development, `pnpm local:dev` starts PostgreSQL plus the native servic
 unauthenticated because Cloud Run IAM is not present, so the API port is bound to loopback only.
 Use `pnpm local:smoke` for a fast deterministic end-to-end check.
 
-The service exposes `/healthz` and versioned routes under
+The service exposes `/health` and versioned routes under
 `/api/internal/v1/ingestions/npm-downloads` and
 `/api/internal/v1/ingestions/google-trends`, and
 `/api/internal/v1/ingestions/github-stars`. The full contracts and deployment runbook are in

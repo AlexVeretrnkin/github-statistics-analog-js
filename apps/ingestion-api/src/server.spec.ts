@@ -7,11 +7,13 @@ import { serveIngestionRequest } from './server.js';
 
 describe('ingestion API transport', () => {
   it('exposes only the dedicated health response at the root level', async () => {
-    const health = await request('GET', '/healthz');
+    const health = await request('GET', '/health');
     expect(health).toEqual({
       body: { service: 'github-statistics-ingestion', status: 'ok' },
       status: 200,
     });
+
+    expect(await request('GET', '/healthz')).toEqual(health);
 
     const root = await request('GET', '/');
     expect(root).toEqual({ body: { error: 'Not found.' }, status: 404 });

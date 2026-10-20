@@ -77,7 +77,8 @@ async function handleRequest(
 ): Promise<void> {
   const url = new URL(request.url ?? '/', 'http://ingestion.local');
 
-  if (request.method === 'GET' && url.pathname === '/healthz') {
+  // Google Frontend intercepts /healthz; retain it only as a local compatibility alias.
+  if (request.method === 'GET' && (url.pathname === '/health' || url.pathname === '/healthz')) {
     sendJson(response, 200, { service: 'github-statistics-ingestion', status: 'ok' });
     return;
   }
