@@ -7,6 +7,9 @@ import { getResearchDatabase } from './client.js';
 let migrationPromise: Promise<void> | undefined;
 
 export function ensureResearchDatabaseSchema(): Promise<void> {
+  if (process.env['RESEARCH_DATABASE_MIGRATIONS'] === 'external') {
+    return Promise.resolve();
+  }
   migrationPromise ??= applyMigrations().catch((error: unknown) => {
     migrationPromise = undefined;
     throw error;
@@ -14,7 +17,7 @@ export function ensureResearchDatabaseSchema(): Promise<void> {
   return migrationPromise;
 }
 
-async function applyMigrations(): Promise<void> {
+export async function applyMigrations(): Promise<void> {
   const migrationsFolder = fileURLToPath(new URL('../drizzle', import.meta.url));
   await runMigrations(getResearchDatabase(), { migrationsFolder });
 }

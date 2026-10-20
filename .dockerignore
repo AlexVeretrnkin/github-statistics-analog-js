@@ -11,6 +11,7 @@
 output
 .env
 .env.*
+gha-creds-*.json
 !.env.example
 Dockerfile*
 README.md

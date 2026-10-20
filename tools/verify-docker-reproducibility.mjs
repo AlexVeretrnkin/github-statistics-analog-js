@@ -33,7 +33,7 @@ function docker(args, { check = true, compose = true } = {}) {
 }
 try {
   docker(['version', '--format', '{{json .}}'], { compose: false });
-  docker(['build', ...(report.cleanBuild ? ['--no-cache'] : []), 'web', 'ingestion-api', 'verifier']);
+  docker(['build', ...(report.cleanBuild ? ['--no-cache'] : []), 'web', 'ingestion-api', 'migrate', 'verifier']);
   docker(['up', '-d', '--wait', '--wait-timeout', '180', 'web', 'ingestion-api', 'postgres']);
   const result = docker(['run', '--rm', '--no-deps', 'verifier']);
   report.verification = JSON.parse(result.stdout);

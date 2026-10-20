@@ -1,0 +1,84 @@
+name: CI and deployment
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Tests and builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm build:all
+      - run: pnpm --filter @github-statistics/research-database db:check
+      - run: node --test tools/research-snapshot-validation.test.mjs tools/deployment/deploy.test.mjs
+  integration:
+    name: Container integration
+    uses: ./.github/workflows/verify-reproducibility.yml
+  deploy:
+    name: Deploy production
+    needs: [test, integration]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.GCP_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: production
+    concurrency:
+      group: production-deployment
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GCP_PROJECT: uni-rnd
+      GCP_REGION: europe-west1
+      GCP_DEPLOY_SERVICE_ACCOUNT: github-statistics-deployer@uni-rnd.iam.gserviceaccount.com
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skip superseded commits
+        id: current
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          head=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')
+          if [ "$head" = "$GITHUB_SHA" ]; then echo 'deploy=true' >> "$GITHUB_OUTPUT"; fi
+      - uses: google-github-actions/auth@v3
+        if: steps.current.outputs.deploy == 'true'
+        with:
+          workload_identity_provider: projects/1097704636754/locations/global/workloadIdentityPools/github-actions/providers/github-statistics
+          service_account: ${{ env.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v3
+        if: steps.current.outputs.deploy == 'true'
+      - name: Build and publish immutable images
+        if: steps.current.outputs.deploy == 'true'
+        run: |
+          gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
+          registry=europe-west1-docker.pkg.dev/uni-rnd/cloud-run-source-deploy
+          for service in web ingestion; do
+            file=Dockerfile
+            [ "$service" != ingestion ] || file=Dockerfile.ingestion
+            image="$registry/github-statistics-$service:$GITHUB_SHA"
+            docker build --file "$file" --tag "$image" .
+            docker push "$image"
+            digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$image")
+            echo "${service^^}_IMAGE=$digest" >> "$GITHUB_ENV"
+          done
+      - name: Migrate, check candidates and promote
+        if: steps.current.outputs.deploy == 'true'
+        run: node tools/deployment/deploy.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deployment-${{ github.sha }}
+          path: output/deployment.json
+          if-no-files-found: ignore

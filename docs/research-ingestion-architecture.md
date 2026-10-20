@@ -360,8 +360,10 @@ stateDiagram-v2
 
 The typed schema is `packages/research-database/src/schema.ts`. Drizzle Kit generates versioned
 migrations in `packages/research-database/drizzle/`; never use `drizzle-kit push` against
-production. The private ingestion service applies pending migrations before opening its HTTP
-listener, so a revision cannot become ready with an incompatible database schema.
+production. Local development applies pending migrations before opening the ingestion HTTP
+listener. The automated production pipeline runs the explicit migration job first and sets
+`RESEARCH_DATABASE_MIGRATIONS=external` on ingestion to disable startup/request migrations.
+See [CI/CD and activation](ci-cd.md); schema changes must remain compatible with the previous release.
 
 Normal reads, writes, deletes, aggregates, and upserts use Drizzle's typed query APIs. Small SQL
 expressions remain only where PostgreSQL-specific behavior is required, notably the advisory
@@ -488,7 +490,7 @@ Build and deploy two images from the same repository:
 | Unauthenticated invocation | Allowed | Disabled |
 | `FRAMEWORK_RESEARCH_DB_READS` | `true` after first ingestion | Not present |
 | `DATABASE_URL` | Read-only PostgreSQL role | Migration/ingestion owner role |
-| IAM invoker | Public | `github-research-ingestor` only |
+| IAM invoker | Public | `github-research-ingestor` and `github-statistics-deployer` |
 
 Keep both database URLs in GCP Secret Manager and expose each only to its corresponding service.
 Do not put either URL in GitHub.
