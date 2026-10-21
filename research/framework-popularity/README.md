@@ -1,5 +1,15 @@
 # JavaScript framework popularity research
 
+## Frozen article experiment
+
+The [article experiment protocol](../../docs/article-experiment.md) documents the
+six-series expanding-window evaluation, parameter exports, residual diagnostics
+and saved-model replay. Run `pnpm research:experiment --snapshot=<directory>
+--output=<new-directory>` from the repository root. This offline process uses an
+explicit frozen snapshot and does not replace the application forecast CSV.
+Use `pnpm research:experiment:test` for numerical checks and
+`pnpm research:experiment:verify <output-directory>` for the completed archive.
+
 This directory preserves and consolidates the research previously maintained in
 `main-web-js-frameworks-popularity`.
 

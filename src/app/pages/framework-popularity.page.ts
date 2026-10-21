@@ -2,6 +2,8 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+import { ResearchExperimentComponent } from '../components/research-experiment/research-experiment';
+import { ForecastRetrospectiveChartComponent } from '../components/forecast-retrospective-chart/forecast-retrospective-chart';
 import { FrameworkPopularityChartComponent } from '../components/framework-popularity-chart/framework-popularity-chart';
 import type {
   FrameworkName,
@@ -12,6 +14,8 @@ import type {
   FrameworkPopularityResearch,
   FrameworkPopularityScale,
   FrameworkPopularitySeries,
+  FrameworkRetrospectiveSeries,
+  FrameworkRetrospectiveStudy,
 } from '../core/framework-popularity.models';
 
 interface FrameworkSummary {
@@ -23,7 +27,13 @@ interface FrameworkSummary {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, RouterLink, FrameworkPopularityChartComponent],
+  imports: [
+    CommonModule,
+    ResearchExperimentComponent,
+    RouterLink,
+    FrameworkPopularityChartComponent,
+    ForecastRetrospectiveChartComponent,
+  ],
   templateUrl: './framework-popularity.page.html',
   styleUrl: './framework-popularity.page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -32,6 +42,7 @@ export default class FrameworkPopularityPageComponent {
   readonly load = input.required<{ research: FrameworkPopularityResearch }>();
 
   protected readonly selectedMetricId = signal<FrameworkPopularityMetricId>('google-trends');
+  protected readonly analysisMode = signal<'trends' | 'retrospective' | 'experiment'>('experiment');
   protected readonly selectedScale = signal<FrameworkPopularityScale>('absolute');
   protected readonly selectedRange = signal<'5y' | 'all'>('all');
   protected readonly selectedFrameworks = signal<FrameworkName[]>(['React', 'Angular', 'Vue']);
@@ -49,6 +60,24 @@ export default class FrameworkPopularityPageComponent {
 
     return metric;
   });
+  protected readonly selectedRetrospective = computed<FrameworkRetrospectiveStudy>(() => {
+    const study = this.research().retrospectives.find(
+      (item) => item.metric === this.selectedMetricId(),
+    ) ?? this.research().retrospectives[0];
+
+    if (!study) {
+      throw new Error('Framework-popularity research has no retrospective studies.');
+    }
+
+    return study;
+  });
+  protected readonly visibleRetrospectiveSeries = computed<FrameworkRetrospectiveSeries[]>(() => {
+    const selected = new Set(this.selectedFrameworks());
+    return this.selectedRetrospective().series.filter((series) => selected.has(series.framework));
+  });
+  protected readonly retrospectiveHasObservations = computed(() =>
+    this.visibleRetrospectiveSeries().some((series) => series.statistics.evaluatedMonths > 0),
+  );
   protected readonly visibleSeries = computed<FrameworkPopularitySeries[]>(() => {
     const selected = new Set(this.selectedFrameworks());
     const series = this.selectedMetric().series.filter((item) => selected.has(item.framework));
@@ -117,6 +146,10 @@ export default class FrameworkPopularityPageComponent {
     this.selectedMetricId.set(metric);
   }
 
+  protected selectAnalysisMode(mode: 'trends' | 'retrospective' | 'experiment'): void {
+    this.analysisMode.set(mode);
+  }
+
   protected selectScale(scale: FrameworkPopularityScale): void {
     this.selectedScale.set(scale);
   }
@@ -159,6 +192,42 @@ export default class FrameworkPopularityPageComponent {
 
   protected formatForecastModel(model: FrameworkForecastSeries['model']): string {
     return model === 'PROPHET' ? 'Prophet' : model;
+  }
+
+  protected formatPercentage(value: number | null): string {
+    return value === null ? '—' : `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}%`;
+  }
+
+  protected formatStatistic(value: number | null): string {
+    return value === null
+      ? '—'
+      : value.toLocaleString(undefined, { maximumFractionDigits: 2, notation: 'compact' });
+  }
+
+  protected formatMeanError(value: number | null): string {
+    if (value === null) {
+      return 'Awaiting observations';
+    }
+
+    const direction = value > 0 ? 'underpredicted' : value < 0 ? 'overpredicted' : 'on target';
+    return `${this.formatStatistic(Math.abs(value))} ${direction}`;
+  }
+
+  protected retrospectiveAssessment(series: FrameworkRetrospectiveSeries): string {
+    const { coverage80, wape } = series.statistics;
+    if (wape === null || coverage80 === null) {
+      return 'No completed-month overlap yet';
+    }
+    if (wape <= 10 && coverage80 >= 80) {
+      return 'Closest to the recorded path';
+    }
+    if (coverage80 < 50) {
+      return 'Acceleration exceeded the interval';
+    }
+    if (wape <= 15) {
+      return 'Direction preserved, misses remain';
+    }
+    return 'Useful baseline, limited precision';
   }
 
   private getForecastBaseline(framework: FrameworkName): number {

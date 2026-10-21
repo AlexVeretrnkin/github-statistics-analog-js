@@ -1,0 +1,18 @@
+@if (rows().length) {
+  <div class="retrospective-chart-stack">
+    @for (row of rows(); track row.framework) {
+      <div class="retrospective-chart-row">
+        <canvas baseChart [data]="row.data" [options]="row.options" type="line"></canvas>
+      </div>
+    }
+  </div>
+  <div class="retrospective-legend" aria-label="Chart legend">
+    <span><i class="forecast-key"></i>Forecast from the recorded origin</span>
+    <span><i class="observed-key"></i>Observed later</span>
+    @if (showInterval()) {
+      <span><i class="interval-key"></i>80% prediction interval</span>
+    }
+  </div>
+} @else {
+  <div class="retrospective-chart-empty">Select at least one framework.</div>
+}

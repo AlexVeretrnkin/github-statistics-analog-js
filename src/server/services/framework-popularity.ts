@@ -22,6 +22,7 @@ import type {
   FrameworkPopularitySeries,
 } from '../../app/core/framework-popularity.models';
 import { getResearchDatabaseConfig } from '../../config/research-database';
+import { buildFrameworkRetrospectives } from './framework-retrospectives';
 
 const RESEARCH_ROOT = join(process.cwd(), 'research', 'framework-popularity');
 const FRAMEWORKS: FrameworkName[] = ['React', 'Angular', 'Vue'];
@@ -53,6 +54,7 @@ export async function getFrameworkPopularityResearch(): Promise<FrameworkPopular
       generatedAt: getLatestDate(metrics),
       metrics,
       diagnostics: loadDiagnostics(),
+      retrospectives: buildFrameworkRetrospectives(metrics),
       provenanceNotes: [
         'Google Trends values are monthly averages of the web-frameworks category (31) series collected by the research scripts.',
         'npm values are monthly package downloads for react, @angular/core, and vue.',
@@ -93,6 +95,7 @@ export async function getFrameworkPopularityResearch(): Promise<FrameworkPopular
     ...cachedResearch,
     generatedAt: getLatestDate(metrics),
     metrics,
+    retrospectives: buildFrameworkRetrospectives(metrics),
   };
 }
 
