@@ -7,7 +7,7 @@
 
   <header class="popularity-hero">
     <div>
-      <p class="eyebrow">Consolidated research · through {{ research().generatedAt }}</p>
+      <p class="eyebrow">Operational signals · through {{ research().generatedAt }}</p>
       <h1>How JavaScript frameworks move</h1>
       <p class="lead">
         Compare React, Angular, and Vue across search interest, package usage, and
@@ -21,6 +21,29 @@
     </div>
   </header>
 
+  <section class="analysis-switcher" aria-label="Analysis mode">
+    <button type="button" [class.analysis-switcher__button--active]="analysisMode() === 'experiment'" (click)="selectAnalysisMode('experiment')">
+      <span>Research validation</span><small>Rolling origins · five models · parameters &amp; residuals</small>
+    </button>
+    <button
+      type="button"
+      [class.analysis-switcher__button--active]="analysisMode() === 'trends'"
+      (click)="selectAnalysisMode('trends')"
+    >
+      <span>Explore signals</span>
+      <small>History and 24-month outlook</small>
+    </button>
+    <button
+      type="button"
+      [class.analysis-switcher__button--active]="analysisMode() === 'retrospective'"
+      (click)="selectAnalysisMode('retrospective')"
+    >
+      <span>Forecast vs actual</span>
+      <small>Evaluate forecasts after the fact</small>
+    </button>
+  </section>
+
+  @if (analysisMode() !== 'experiment') {
   <section class="metric-tabs" aria-label="Popularity metric">
     @for (metric of research().metrics; track metric.id) {
       <button
@@ -34,7 +57,11 @@
     }
   </section>
 
-  <section class="research-panel chart-panel">
+  }
+  @if (analysisMode() === 'experiment') {
+    <app-research-experiment />
+  } @else if (analysisMode() === 'trends') {
+    <section class="research-panel chart-panel">
     <div class="panel-heading">
       <div>
         <p class="panel-kicker">{{ selectedMetric().sourceLabel }}</p>
@@ -93,10 +120,10 @@
     } @placeholder {
       <div class="chart-placeholder">Loading the research chart…</div>
     }
-  </section>
+    </section>
 
-  @if (visibleForecasts().length > 0) {
-    <section class="forecast-strip" aria-label="Active forecasts">
+    @if (visibleForecasts().length > 0) {
+      <section class="forecast-strip" aria-label="Active forecasts">
       <div>
         <p class="panel-kicker">24-month outlook</p>
         <strong>{{ forecastHeading() }}</strong>
@@ -108,10 +135,10 @@
           </span>
         }
       </div>
-    </section>
-  }
+      </section>
+    }
 
-  <section class="summary-grid" aria-label="Latest observations">
+    <section class="summary-grid" aria-label="Latest observations">
     @for (summary of summaries(); track summary.framework) {
       <article class="summary-card" [attr.data-framework]="summary.framework">
         <p>{{ summary.framework }}</p>
@@ -124,9 +151,9 @@
         }
       </article>
     }
-  </section>
+    </section>
 
-  <section class="details-grid">
+    <section class="details-grid">
     <article class="research-panel methodology-card">
       <p class="panel-kicker">Method</p>
       <h2>How to read this signal</h2>
@@ -136,13 +163,13 @@
           <li>{{ note }}</li>
         }
       </ul>
-      <p class="deferred-note">Git-stars data origin is recorded as deferred, as requested.</p>
+      <p class="deferred-note">For the frozen six-series experiment and full diagnostics, open Research validation.</p>
     </article>
 
     <article class="research-panel diagnostics-card">
       <p class="panel-kicker">Model diagnostics</p>
-      <h2>Ljung–Box residual checks</h2>
-      <p>ARIMA and ETS residual checks. Prophet is compared through the holdout RMSE shown above.</p>
+      <h2>Archived residual checks</h2>
+      <p>Earlier ARIMA and ETS diagnostics. Exact-fit checks for all five models are in Research validation.</p>
       <div class="diagnostics-table" role="table" aria-label="Model residual p-values">
         <div class="diagnostics-row diagnostics-row--head" role="row">
           <span>Framework</span><span>ARIMA p</span><span>ETS p</span>
@@ -156,5 +183,110 @@
         }
       </div>
     </article>
-  </section>
+    </section>
+  } @else {
+    <section class="research-panel retrospective-panel">
+      <div class="retrospective-heading">
+        <div>
+          <p class="panel-kicker">Forecast validation · {{ selectedRetrospective().evidence }}</p>
+          <h2>{{ selectedRetrospective().title }}</h2>
+          <p>{{ selectedRetrospective().description }}</p>
+        </div>
+
+        <div class="retrospective-controls">
+          <div class="control-group" aria-label="Frameworks">
+            @for (framework of ['React', 'Angular', 'Vue']; track framework) {
+              <button
+                type="button"
+                class="framework-chip"
+                [class.framework-chip--active]="isFrameworkSelected($any(framework))"
+                [attr.data-framework]="framework"
+                (click)="toggleFramework($any(framework))"
+              >{{ framework }}</button>
+            }
+          </div>
+          <button
+            type="button"
+            class="interval-toggle"
+            [class.interval-toggle--active]="showForecastInterval()"
+            (click)="toggleForecastInterval()"
+          >
+            80% interval
+          </button>
+        </div>
+      </div>
+
+      <div class="study-facts" aria-label="Forecast study facts">
+        <span><small>Forecast origin</small><strong>{{ selectedRetrospective().originDate }}</strong></span>
+        <span><small>Evaluation window</small><strong>{{ selectedRetrospective().evaluationStart }} — {{ selectedRetrospective().evaluationEnd }}</strong></span>
+        <span><small>Evidence</small><strong>{{ selectedRetrospective().evidence }}</strong></span>
+        <span><small>Vertical scale</small><strong>{{ selectedRetrospective().scale }}</strong></span>
+      </div>
+
+      @defer {
+        <app-forecast-retrospective-chart
+          [series]="visibleRetrospectiveSeries()"
+          [showInterval]="showForecastInterval()"
+          [scale]="selectedRetrospective().scale"
+          [unit]="selectedRetrospective().unit"
+        />
+      } @placeholder {
+        <div class="chart-placeholder">Loading the forecast comparison…</div>
+      }
+    </section>
+
+    @if (retrospectiveHasObservations()) {
+      <section class="accuracy-grid" aria-label="Retrospective accuracy">
+        @for (series of visibleRetrospectiveSeries(); track series.framework) {
+          <article class="accuracy-card" [attr.data-framework]="series.framework">
+            <div class="accuracy-card__heading">
+              <div>
+                <p>{{ series.framework }}</p>
+                <span>{{ series.model }} · {{ series.statistics.evaluatedMonths }} matched months</span>
+              </div>
+              <strong>{{ formatPercentage(series.statistics.wape) }} <small>WAPE</small></strong>
+            </div>
+            <dl>
+              <div><dt>RMSE</dt><dd>{{ formatStatistic(series.statistics.rmse) }}</dd></div>
+              <div><dt>MAE</dt><dd>{{ formatStatistic(series.statistics.mae) }}</dd></div>
+              <div><dt>80% coverage</dt><dd>{{ formatPercentage(series.statistics.coverage80) }}</dd></div>
+            </dl>
+            <p class="accuracy-card__assessment">{{ retrospectiveAssessment(series) }}</p>
+            <small class="accuracy-card__bias">Average bias: {{ formatMeanError(series.statistics.meanError) }}</small>
+          </article>
+        }
+      </section>
+    } @else {
+      <section class="awaiting-card">
+        <div class="awaiting-card__marker">0</div>
+        <div>
+          <p class="panel-kicker">Evaluation pending</p>
+          <h2>No matched observations yet</h2>
+          <p>
+            The stored forecast begins at {{ selectedRetrospective().evaluationStart }}.
+            This view will calculate RMSE, MAE, WAPE, bias, and interval coverage as
+            completed-month observations arrive.
+          </p>
+        </div>
+      </section>
+    }
+
+    <section class="retrospective-notes">
+      <article class="research-panel finding-card">
+        <p class="panel-kicker">Research reading</p>
+        <h2>Point error and uncertainty belong together</h2>
+        <p>
+          WAPE shows the error relative to observed volume. Coverage shows how often
+          reality stayed inside the stated 80% interval. A high coverage score is not
+          automatically precise when the interval itself is very wide.
+        </p>
+      </article>
+      <article class="research-panel provenance-card">
+        <p class="panel-kicker">Evidence boundary</p>
+        <h2>{{ selectedRetrospective().evidence === 'operational' ? 'Operational check' : 'Article benchmark' }}</h2>
+        <p>{{ selectedRetrospective().note }}</p>
+        <small>Forecast controls display stored paths; they do not refit the origin with later observations.</small>
+      </article>
+    </section>
+  }
 </section>

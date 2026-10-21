@@ -44,6 +44,15 @@ testem.log
 /research/framework-popularity/.r-library/
 /research/framework-popularity/out/*_ingestion.rds
 
+# Local manuscripts, conference materials, and review artifacts
+/Article_Eng_*
+/article_assets/
+/article_jcam_*/
+/conference_mcit_*/
+/qa/
+/design-qa.md
+/docs/article-review-*.md
+
 # System files
 .DS_Store
 Thumbs.db

@@ -35,6 +35,9 @@
     "research:test:completed-months": "Rscript research/framework-popularity/tests/test_completed_months.R",
     "research:test:stars": "Rscript research/framework-popularity/tests/test_github_star_history.R",
     "research:forecasts": "Rscript research/framework-popularity/refresh_data.R --source=none",
+    "research:experiment": "Rscript --vanilla research/framework-popularity/experiment/run.R",
+    "research:experiment:verify": "Rscript --vanilla research/framework-popularity/experiment/verify.R",
+    "research:experiment:test": "Rscript --vanilla research/framework-popularity/tests/test_article_experiment.R",
     "research:validate": "Rscript research/framework-popularity/refresh_data.R --validate-only",
     "local:up": "docker compose --env-file .env.local -f compose.yaml up --build --detach",
     "local:dev": "node tools/local-dev.mjs",
@@ -54,7 +57,8 @@
     "local:compare:stars": "pnpm run build:packages && node tools/compare-github-stars-data.mjs",
     "local:compare:stars:strict": "pnpm run build:packages && node tools/compare-github-stars-data.mjs --strict",
     "test": "pnpm run build:packages && pnpm exec vitest run && pnpm exec vitest run --config vitest.node.config.ts",
-    "preview": "node dist/analog/server/index.mjs"
+    "preview": "node dist/analog/server/index.mjs",
+    "research:experiment:export": "python3 tools/export-article-experiment.py"
   },
   "private": true,
   "license": "MIT",

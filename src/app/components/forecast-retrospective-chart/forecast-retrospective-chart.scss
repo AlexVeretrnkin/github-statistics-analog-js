@@ -1,0 +1,69 @@
+.retrospective-chart-stack {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.retrospective-chart-row {
+  height: clamp(12rem, 21vw, 16rem);
+}
+
+.retrospective-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.65rem 1.35rem;
+  margin-top: 1rem;
+  color: #68758a;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.retrospective-legend span {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.retrospective-legend i {
+  display: inline-block;
+  width: 1.6rem;
+  height: 0.55rem;
+}
+
+.forecast-key {
+  border-top: 2px dashed #1769c2;
+}
+
+.observed-key {
+  position: relative;
+  border-top: 2px solid #172033;
+}
+
+.observed-key::after {
+  position: absolute;
+  top: -0.32rem;
+  left: 0.65rem;
+  width: 0.48rem;
+  height: 0.48rem;
+  border-radius: 50%;
+  background: #172033;
+  content: '';
+}
+
+.interval-key {
+  border-radius: 0.15rem;
+  background: rgba(93, 173, 226, 0.25);
+}
+
+.retrospective-chart-empty {
+  min-height: 22rem;
+  display: grid;
+  place-items: center;
+  color: #68758a;
+}
+
+@media (max-width: 640px) {
+  .retrospective-chart-row {
+    height: 13rem;
+  }
+}

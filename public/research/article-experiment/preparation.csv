@@ -1,0 +1,7 @@
+"series_id","raw_months","excluded_initial_partial","excluded_leading_zeros","start","end","months"
+"npm-downloads_React",140,FALSE,1,"2015-02-01","2026-08-01",139
+"npm-downloads_Angular",140,FALSE,21,"2016-10-01","2026-08-01",119
+"npm-downloads_Vue",140,FALSE,1,"2015-02-01","2026-08-01",139
+"github-stars_React",160,TRUE,0,"2013-06-01","2026-08-01",159
+"github-stars_Angular",144,TRUE,0,"2014-10-01","2026-08-01",143
+"github-stars_Vue",99,TRUE,2,"2018-09-01","2026-08-01",96

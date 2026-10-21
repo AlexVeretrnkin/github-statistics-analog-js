@@ -54,9 +54,50 @@ export interface FrameworkPopularityDiagnostic {
   metric: FrameworkPopularityMetricId;
 }
 
+export type FrameworkRetrospectiveEvidence = 'frozen' | 'reconstructed' | 'operational';
+
+export interface FrameworkRetrospectivePoint {
+  date: string;
+  forecast: number;
+  hi80: number;
+  lo80: number;
+  observed: number | null;
+}
+
+export interface FrameworkRetrospectiveStatistics {
+  coverage80: number | null;
+  evaluatedMonths: number;
+  mae: number | null;
+  meanError: number | null;
+  rmse: number | null;
+  wape: number | null;
+}
+
+export interface FrameworkRetrospectiveSeries {
+  framework: FrameworkName;
+  model: FrameworkForecastModel;
+  points: FrameworkRetrospectivePoint[];
+  statistics: FrameworkRetrospectiveStatistics;
+}
+
+export interface FrameworkRetrospectiveStudy {
+  description: string;
+  evidence: FrameworkRetrospectiveEvidence;
+  evaluationEnd: string;
+  evaluationStart: string;
+  metric: FrameworkPopularityMetricId;
+  note: string;
+  originDate: string;
+  scale: 'linear' | 'logarithmic';
+  series: FrameworkRetrospectiveSeries[];
+  title: string;
+  unit: string;
+}
+
 export interface FrameworkPopularityResearch {
   diagnostics: FrameworkPopularityDiagnostic[];
   generatedAt: string;
   metrics: FrameworkPopularityMetric[];
   provenanceNotes: string[];
+  retrospectives: FrameworkRetrospectiveStudy[];
 }

@@ -1,0 +1,115 @@
+@if (error()) {
+  <section class="panel" role="alert"><h2>Research results could not be loaded</h2><p>Reload this page to retry loading the saved experiment.</p></section>
+} @else if (experiment(); as data) {
+  <header class="panel intro">
+    <p class="eyebrow">Article experiment · 18 October 2026</p>
+    <h2>Which forecasts hold up across time?</h2>
+    <p>Compare five models across 24 monthly forecast origins. These results use six frozen npm and GitHub series through August 2026, with no observations after each origin passed into model fitting.</p>
+    <div class="facts"><span><b>6</b> series</span><span><b>24</b> origins</span><span><b>1 · 3 · 6 · 12</b> month horizons</span><span><b>{{ data.status.fits }}</b> successful fits</span></div>
+    <p class="note">Source: verified local Compose PostgreSQL snapshot from {{ data.config.snapshot_as_of }}. This study is separate from the live database and the earlier dashboard forecasts. GitHub history can be revised; this is a retrospective backtest using one frozen snapshot.</p>
+    <nav class="section-nav" aria-label="Experiment sections"><a href="/framework-popularity#comparison">Accuracy</a><a href="/framework-popularity#stability">Stability</a><a href="/framework-popularity#outlook">Outlook</a><a href="/framework-popularity#diagnostics">Parameters &amp; residuals</a><a href="/framework-popularity#experiment-methods">Methods &amp; downloads</a></nav>
+  </header>
+
+  <section class="panel">
+    <h3>Lowest RMSE depends on the series and horizon</h3>
+    <p>Each winner below is a retrospective comparison of the same 24 origins. Small differences do not establish statistical significance.</p>
+    <div class="table-scroll"><table><caption>Lowest-RMSE family by exact forecast horizon</caption><thead><tr><th>Series</th>@for (h of horizons; track h) {<th>{{ h }} month{{ h > 1 ? 's' : '' }}</th>}</tr></thead><tbody>
+      @for (row of overview(); track row.series.id) {<tr [class.selected]="row.series.id === seriesId()"><th><button class="link" (click)="seriesId.set(row.series.id)">{{ row.series.framework }} · {{ row.series.metric === 'npm-downloads' ? 'npm' : 'GitHub' }}</button></th>@for (w of row.winners; track w.horizon) {<td>{{ label(w.model) }}</td>}</tr>}
+    </tbody></table></div>
+    <p class="note">At twelve months SARIMA leads all npm series; Prophet leads GitHub React and Angular, and ETS leads GitHub Vue. Naive wins npm React at one month and npm Vue at one, three and six months.</p>
+  </section>
+
+  <section class="panel selectors" aria-label="Experiment selection">
+    <label>Series<select [value]="seriesId()" (change)="seriesId.set($any($event.target).value)">@for (s of data.series; track s.id) {<option [value]="s.id">{{ s.framework }} · {{ s.metric === 'npm-downloads' ? 'npm downloads' : 'GitHub stars' }}</option>}</select></label>
+    <div><span class="control-label">Forecast horizon</span><div class="buttons">@for (h of horizons; track h) {<button type="button" [attr.aria-pressed]="horizon() === h" (click)="horizon.set(h)">{{ h }}m</button>}</div></div>
+  </section>
+
+  @if (current(); as series) {
+    <section class="panel" id="comparison">
+      <p class="eyebrow">{{ series.framework }} · {{ series.metric }} · exactly {{ horizon() }} months ahead</p>
+      <h3>Point accuracy and interval quality</h3>
+      <div class="facts"><span><b>{{ label(winner()!.model) }}</b> lowest RMSE</span><span><b>{{ num(baselineGain()) }}%</b> lower RMSE than naive</span><span><b>24</b> paired targets per model</span></div>
+      <p>All errors, widths and scores below use original {{ series.metric === 'npm-downloads' ? 'download' : 'star' }} counts. Rows are sorted by RMSE; lower errors and interval scores are better.</p>
+      <div class="table-scroll"><table data-testid="accuracy-table"><caption>Point forecasts and variability of absolute errors</caption><thead><tr><th>Model</th><th>MAE</th><th>RMSE</th><th>WAPE</th><th>Abs. error SD</th><th>P10</th><th>P90</th></tr></thead><tbody>
+        @for (row of accuracy(); track row.model) {<tr [class.selected]="row.model === winner()?.model"><th>{{ label(row.model) }}</th><td>{{ num(row.mae) }}</td><td>{{ num(row.rmse) }}</td><td>{{ num(row.wape_pct) }}%</td><td>{{ num(row.absolute_error_sd) }}</td><td>{{ num(row.absolute_error_p10) }}</td><td>{{ num(row.absolute_error_p90) }}</td></tr>}
+      </tbody></table></div>
+      <p class="note">SD and the 10th/90th percentiles describe variation across origins; they are not confidence intervals. Errors overlap and are dependent. Horizons use different target months.</p>
+      <div class="table-scroll"><table><caption>80% and 95% prediction intervals</caption><thead><tr><th>Model</th><th>Coverage 80%</th><th>Width 80%</th><th>Score 80%</th><th>Coverage 95%</th><th>Width 95%</th><th>Score 95%</th></tr></thead><tbody>
+        @for (row of accuracy(); track row.model) {<tr><th>{{ label(row.model) }}</th><td>{{ percent(row.coverage80) }}</td><td>{{ num(row.width80) }}</td><td>{{ num(row.interval_score80) }}</td><td>{{ percent(row.coverage95) }}</td><td>{{ num(row.width95) }}</td><td>{{ num(row.interval_score95) }}</td></tr>}
+      </tbody></table></div>
+      <p class="note">High coverage can result from excessively wide intervals. At h=12, React npm SARIMA has 100% coverage at 80%, but a mean width near 7.80 billion downloads. Angular GitHub Prophet's nominal 95% interval covers only 79.2% of targets. These 24 dependent targets do not establish calibration.</p>
+    </section>
+
+    <section class="panel" id="stability">
+      <p class="eyebrow">Same origins · same targets</p><h3>How stable is a model's advantage?</h3>
+      <p>A model can have the lowest overall RMSE without winning at most individual origins. Win counts minimize absolute error at each origin; ties split one win equally. They describe hindsight performance, not a future selection policy or a significance test.</p>
+      <div class="two-columns">
+        <div class="table-scroll"><table><caption>Wins at {{ horizon() }} months ahead</caption><thead><tr><th>Model</th><th>Wins / 24</th><th>Share</th></tr></thead><tbody>@for (row of stability(); track row.model) {<tr><th>{{ label(row.model) }}</th><td>{{ num(row.wins) }}</td><td>{{ percent(row.wins / 24) }}</td></tr>}</tbody></table></div>
+        <div class="chart">@defer {<canvas baseChart [data]="winData()" [options]="barOptions" type="bar" role="img" aria-label="Weighted wins across forecast origins"></canvas>} @placeholder {<p>Loading chart…</p>}</div>
+      </div>
+      <h4>Absolute error by completed origin month</h4>
+      <div class="chart tall">@defer {<canvas baseChart [data]="errorData()" [options]="lineOptions" type="line" role="img" aria-label="Absolute forecast errors across 24 origins"></canvas>} @placeholder {<p>Loading chart…</p>}</div>
+      <p class="note">The horizontal axis labels the completed training month. At h=12 the two naive point forecasts coincide, so winning weight is shared. SARIMA wins npm React at 12/24 origins, Angular at 15/24 and Vue at 8/24; Prophet wins GitHub React at 12/24 and Angular at 6/24; ETS wins GitHub Vue at 9/24.</p>
+      <details><summary>Inspect predictions at one historical origin</summary>
+        <label>Completed training month<select [value]="origin()" (change)="origin.set($any($event.target).value)">@for (o of origins(); track o) {<option [value]="o">{{ o.slice(0, 7) }}</option>}</select></label>
+        <div class="table-scroll"><table><caption>Target {{ originRows()[0]?.date }} · actual {{ num(originRows()[0]?.actual) }}</caption><thead><tr><th>Model</th><th>Prediction</th><th>80% lower</th><th>80% upper</th><th>95% lower</th><th>95% upper</th></tr></thead><tbody>@for (p of originRows(); track p.model) {<tr><th>{{ label(p.model) }}</th><td>{{ num(p.point) }}</td><td>{{ num(p.lo80) }}</td><td>{{ num(p.hi80) }}</td><td>{{ num(p.lo95) }}</td><td>{{ num(p.hi95) }}</td></tr>}</tbody></table></div>
+      </details>
+    </section>
+
+    <section class="panel" id="outlook">
+      <p class="eyebrow">Separate full-history fits · through August 2026</p><h3>24-month outlook and fitted parameters</h3>
+      <p>These models are refitted through the final observed month. The outlook is not scored as part of the backtest. All five models, including naive baselines, are available.</p>
+      <div class="selectors">
+        <label>Model<select [value]="model()" (change)="modelChange($any($event.target).value)">@for (m of models; track m) {<option [value]="m">{{ label(m) }}</option>}</select></label>
+        <label>Prediction interval<select [value]="interval()" (change)="intervalChange($any($event.target).value)"><option value="80">80%</option><option value="95">95%</option><option value="off">Off</option></select></label>
+        <button type="button" [attr.aria-pressed]="logScale()" (click)="logScale.set(!logScale())">{{ logScale() ? 'Log scale: log₁₀(count + 1)' : 'Original count scale' }}</button>
+      </div>
+      <div class="chart tall">@defer {<canvas baseChart [data]="forecastData()" [options]="forecastOptions()" type="line" role="img" aria-label="Frozen 24-month outlook with observed history"></canvas>} @placeholder {<p>Loading chart…</p>}</div>
+      <p class="note">The chart shows the last 36 observed months; all retained history was used for fitting. Point forecasts are inverse-transformed log predictions without mean bias adjustment and are not generally conditional means on the count scale.</p>
+      <details><summary>All 24 forecast months in count units</summary><div class="table-scroll"><table><thead><tr><th>Month</th><th>Point</th><th>80% lower</th><th>80% upper</th><th>95% lower</th><th>95% upper</th></tr></thead><tbody>@for (p of series.outlook; track p.model + p.date) {@if (p.model === model()) {<tr><th>{{ p.date }}</th><td>{{ num(p.point) }}</td><td>{{ num(p.lo80) }}</td><td>{{ num(p.hi80) }}</td><td>{{ num(p.lo95) }}</td><td>{{ num(p.hi95) }}</td></tr>}}</tbody></table></div></details>
+    </section>
+
+    <section class="panel" id="diagnostics">
+      <p class="eyebrow">Exact saved models · {{ label(model()) }}</p><h3>Parameter estimation and residual adequacy</h3>
+      <label>Inspect saved model<select [value]="model()" (change)="modelChange($any($event.target).value)">@for (m of models; track m) {<option [value]="m">{{ label(m) }}</option>}</select></label>
+      @if (modelFit(); as fit) {
+        <dl class="fit-facts"><div><dt>Selected structure</dt><dd>{{ fit.specification }}</dd></div><div><dt>Optimizer</dt><dd>{{ fit.optimizer }}</dd></div><div><dt>Training window</dt><dd>{{ fit.train_start }} — {{ fit.origin }} · {{ fit.n_train }} months</dd></div><div><dt>AICc / log likelihood</dt><dd>{{ num(fit.aicc) }} / {{ num(fit.loglik) }}</dd></div><div><dt>Seed / convergence code</dt><dd>{{ fit.seed }} / {{ num(fit.convergence_code) }}</dd></div></dl>
+      }
+      <details><summary>Parameter estimates · {{ parameters().length }} values</summary>
+        <p>Approximate 95% Wald intervals are available for SARIMA coefficients, conditional on the selected structure and ignoring selection uncertainty. ETS and Prophet parameter intervals were not computed. Their point estimates and model-based prediction intervals are distinct quantities.</p>
+        <p class="note">AR/MA describe nonseasonal terms; SAR/SMA are at multiples of 12 months. Wald intervals may extend outside admissible regions. For higher-order MA models invertibility concerns polynomial roots, not each coefficient separately. Prophet estimates use internal normalized time and response scales.</p>
+        <div class="table-scroll"><table><caption>Full-history estimates for {{ label(model()) }}</caption><thead><tr><th>Parameter</th><th>Estimate</th><th>SE</th><th>Lower 95%</th><th>Upper 95%</th><th>Scale</th></tr></thead><tbody>@for (p of parameters(); track p.parameter) {<tr><th>{{ p.parameter }}</th><td>{{ num(p.estimate) }}</td><td>{{ num(p.standard_error) }}</td><td>{{ num(p.lower95) }}</td><td>{{ num(p.upper95) }}</td><td class="text-cell">{{ p.scale }}</td></tr>}</tbody></table></div>
+      </details>
+      <h4>Ljung–Box checks for all five full-history fits</h4>
+      <div class="table-scroll"><table><thead><tr><th>Model</th><th>Residual n</th><th>Lag</th><th>Fit df</th><th>Test df</th><th>Q</th><th>p-value</th></tr></thead><tbody>@for (d of series.diagnostics; track d.model) {<tr [class.selected]="d.model === model()"><th>{{ label(d.model) }}</th><td>{{ d.n_residuals }}</td><td>{{ d.lag }}</td><td>{{ d.fitdf }}</td><td>{{ d.lag - d.fitdf }}</td><td>{{ num(d.ljung_box_q) }}</td><td>{{ num(d.p_value) }}</td></tr>}</tbody></table></div>
+      <p class="note">Significance level 0.05. Lag = max(k + 3, min(24, floor(n / 5))); k = p + q + P + Q for SARIMA, 0 otherwise. ETS and Prophet p-values are exploratory, without a validated effective-df correction. Non-rejection does not establish independence or calibration. Npm React and Angular SARIMA retain residual dependence despite winning twelve-month RMSE.</p>
+      <h4>Residuals · {{ label(model()) }}</h4>
+      <p>{{ model() === 'PROPHET' ? 'In-sample response residuals on the log1p scale.' : 'Model innovation residuals. Multiplicative ETS innovations are relative errors.' }} Residual magnitudes are not directly comparable between families.</p>
+      <div class="chart">@defer {<canvas baseChart [data]="residualData()" [options]="residualOptions" type="line" role="img" aria-label="Saved full-history model residuals over time"></canvas>} @placeholder {<p>Loading chart…</p>}</div>
+      <div class="two-columns">
+        <article><h4>Residual autocorrelation</h4><div class="chart">@defer {<canvas baseChart [data]="acfData()" [options]="acfOptions" [plugins]="acfPlugins" type="bar" role="img" aria-label="Residual autocorrelation by lag"></canvas>} @placeholder {<p>Loading chart…</p>}</div><p class="note">Nominal reference limits: ±{{ referenceBand() }} (1.96/√n). These are not simultaneous or post-selection bands.</p></article>
+        <article><h4>Residual distribution</h4><div class="chart">@defer {<canvas baseChart [data]="histogramData()" [options]="barOptions" type="bar" role="img" aria-label="Histogram of saved residuals"></canvas>} @placeholder {<p>Loading chart…</p>}</div><p class="note">15 equal-width bins of finite saved-fit residuals. Undefined initial residuals are excluded, not treated as zero.</p></article>
+      </div>
+      <p class="note">Influential anomalies were retained: Vue npm's December 2022 peak (154,612,153 downloads) and Angular GitHub's November 2023 spike (1,856 stars). No outlier removal or causal attribution is applied.</p>
+    </section>
+
+    <section class="panel" id="experiment-methods">
+      <p class="eyebrow">Methodology &amp; provenance</p><h3>How the experiment was evaluated</h3>
+      <dl class="methods">
+        <div><dt>Data preparation</dt><dd>Initial partial source months and leading zero months are excluded; all later zeros and anomalies are retained. No interpolation or cleaning. This series uses {{ series.preparation.months }} months, {{ series.preparation.start }} — {{ series.preparation.end }} ({{ series.preparation.excluded_leading_zeros }} leading zero months removed; initial partial month {{ series.preparation.excluded_initial_partial ? 'excluded' : 'not present' }}).</dd></div>
+        <div><dt>Expanding-window validation</dt><dd>24 common origins from September 2023 through August 2025, with at least 36 training months. Each origin labels a completed month; the cutoff is month end. All models use the same training and target data. Structural choices are repeated inside each training window. A failed fit would exclude the origin for all models; no fits failed.</dd></div>
+        <div><dt>Naive and seasonal naive</dt><dd>Naive repeats the last observation: X̂(T+h|T) = X(T). Seasonal naive repeats the prior annual cycle: X̂(T+h|T) = X(T+h−12) for h ≤ 12. Both use the same log1p scale. At h = 12 the point predictions coincide; their uncertainty can differ.</dd></div>
+        <div><dt>SARIMA</dt><dd>KPSS differencing, seasonal-strength seasonal differencing, period 12, stepwise AICc search with approximation disabled. CSS initializes maximum likelihood (CSS–ML, BFGS). Mean/drift permitted when applicable. Selected seasonal orders can be zero.</dd></div>
+        <div><dt>ETS</dt><dd>Likelihood estimation of smoothing parameters and initial states with the library's internal simplex optimizer; AICc structure selection with usual and admissible bounds. Eligible damped/undamped trends and seasonality are searched; multiplicative trends are disabled.</dd></div>
+        <div><dt>Prophet</dt><dd>MAP linear trend, 25 candidate changepoints in the first 80% of training history, additive annual Fourier order 10. Prior scales: changepoints 0.05, seasonality 10. No weekly/daily terms, holidays or external regressors. Newton below 100 observations, otherwise L-BFGS with Newton fallback. No hyperparameter search or MCMC. 1,000 seeded predictive draws supply nested 80% and 95% quantiles; full posterior parameter uncertainty is not included.</dd></div>
+        <div><dt>Scores and uncertainty</dt><dd>RMSE = √mean(error²); MAE = mean(|error|); WAPE = 100 × Σ|error| / Σactual. Errors are scored at exactly h months, never pooled across series. Interval score = width + 2/α × missed distance below/above the interval, with α = 0.20 or 0.05. Lower scores balance width and misses. Inverse mapping is max(expm1(z), 0), without mean bias adjustment.</dd></div>
+        <div><dt>Reproducibility</dt><dd>{{ data.config.R_version }} · forecast {{ data.config.forecast_version }} · Prophet {{ data.config.prophet_version }} · base seed {{ data.config.seed }}. Exact fit objects, observations, parameters, predictions, residuals, sources and environment records are preserved in the experiment archive. Saved-model replay and metric checks passed locally; independent full re-estimation and a DOI-backed archival release remain pending.</dd></div>
+      </dl>
+      <h4>Download the numbers behind this view</h4>
+      <div class="downloads">@for (file of ['results.json', 'accuracy.csv', 'ex-post-winner-frequency.csv', 'full-history-parameters.csv', 'full-history-diagnostics.csv', 'preparation.csv', 'config.json']; track file) {<a [href]="assetRoot + file" [attr.download]="file">{{ file }}</a>}</div>
+      <details><summary>Source-file integrity (SHA-256)</summary><dl class="hashes">@for (file of data.sourceFiles; track file.file) {<div><dt>{{ file.file }}</dt><dd>{{ file.sha256 }}</dd></div>}</dl></details>
+    </section>
+  }
+} @else {
+  <section class="panel" role="status">Loading the verified experiment results…</section>
+}
