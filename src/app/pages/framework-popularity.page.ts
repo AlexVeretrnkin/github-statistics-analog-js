@@ -33,7 +33,7 @@ export default class FrameworkPopularityPageComponent {
 
   protected readonly selectedMetricId = signal<FrameworkPopularityMetricId>('google-trends');
   protected readonly selectedScale = signal<FrameworkPopularityScale>('absolute');
-  protected readonly selectedRange = signal<'5y' | 'all'>('5y');
+  protected readonly selectedRange = signal<'5y' | 'all'>('all');
   protected readonly selectedFrameworks = signal<FrameworkName[]>(['React', 'Angular', 'Vue']);
   protected readonly forecastMode = signal<FrameworkForecastMode>('best');
   protected readonly showForecastInterval = signal(true);
