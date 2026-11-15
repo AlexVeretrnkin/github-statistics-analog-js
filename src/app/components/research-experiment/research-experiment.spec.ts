@@ -1,4 +1,6 @@
 import { TestBed, DeferBlockBehavior } from '@angular/core/testing';
+import { ViewportScroller } from '@angular/common';
+import { provideRouter, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import data from '../../../../public/research/article-experiment/results.json';
@@ -8,7 +10,7 @@ describe('research experiment view', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ResearchExperimentComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
       deferBlockBehavior: DeferBlockBehavior.Manual,
     }).compileComponents();
   });
@@ -37,6 +39,21 @@ describe('research experiment view', () => {
     expect(originSelector.options[0].text).toBe('2023-09');
     expect(originSelector.options[23].text).toBe('2025-08');
     http.verify();
+  });
+
+  it('opens the linked series and model once the residual plot is rendered', async () => {
+    await TestBed.inject(Router).navigateByUrl('/?series=github-stars_Vue&model=ETS#residuals');
+    const fixture = TestBed.createComponent(ResearchExperimentComponent);
+    const scroll = vi.spyOn(TestBed.inject(ViewportScroller), 'scrollToAnchor').mockImplementation(anchor => {
+      expect(fixture.nativeElement.querySelector('#' + anchor)?.textContent).toBe('Residuals · Vue · GitHub stars · ETS');
+    });
+    fixture.detectChanges();
+    expect(scroll).not.toHaveBeenCalled();
+    TestBed.inject(HttpTestingController).expectOne('/research/article-experiment/results.json').flush(data);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(scroll).toHaveBeenCalledWith('residuals');
+    expect(fixture.nativeElement.querySelector('#diagnostics select').value).toBe('ETS');
   });
 
   it('shows a failure state instead of presenting empty results as successful research', () => {
