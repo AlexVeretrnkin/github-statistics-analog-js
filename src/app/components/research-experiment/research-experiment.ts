@@ -1,7 +1,9 @@
-import { CommonModule } from '@angular/common';
+import { CommonModule, ViewportScroller } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, inject, Injector, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
+import { combineLatest } from 'rxjs';
 import { BaseChartDirective } from 'ng2-charts';
 import { Chart, type ChartConfiguration, type ChartDataset, type Plugin, registerables } from 'chart.js';
 import type { ExperimentHorizon, ExperimentModel, ResearchExperiment } from '../../core/research-experiment.models';
@@ -132,8 +134,22 @@ export class ResearchExperimentComponent {
   };
 
   constructor() {
-    inject(HttpClient).get<ResearchExperiment>(`${this.assetRoot}results.json`).pipe(takeUntilDestroyed()).subscribe({
-      next: data => this.experiment.set(data), error: () => this.error.set(true),
+    const route = inject(ActivatedRoute);
+    const scroller = inject(ViewportScroller);
+    const injector = inject(Injector);
+    const results = inject(HttpClient).get<ResearchExperiment>(`${this.assetRoot}results.json`);
+    combineLatest([results, route.queryParamMap, route.fragment]).pipe(takeUntilDestroyed()).subscribe({
+      next: ([data, params, fragment]) => {
+        this.experiment.set(data);
+        const series = data.series.find(item => item.id === params.get('series'));
+        if (series) this.seriesId.set(series.id);
+        const model = params.get('model');
+        if (model) this.modelChange(model);
+        if (fragment === 'residuals') {
+          afterNextRender(() => scroller.scrollToAnchor(fragment), { injector });
+        }
+      },
+      error: () => this.error.set(true),
     });
   }
 

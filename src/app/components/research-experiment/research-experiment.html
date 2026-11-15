@@ -21,7 +21,7 @@
   </section>
 
   <section class="panel selectors" aria-label="Experiment selection">
-    <label>Series<select [value]="seriesId()" (change)="seriesId.set($any($event.target).value)">@for (s of data.series; track s.id) {<option [value]="s.id">{{ s.framework }} · {{ s.metric === 'npm-downloads' ? 'npm downloads' : 'GitHub stars' }}</option>}</select></label>
+    <label>Series<select (change)="seriesId.set($any($event.target).value)">@for (s of data.series; track s.id) {<option [value]="s.id" [selected]="s.id === seriesId()">{{ s.framework }} · {{ s.metric === 'npm-downloads' ? 'npm downloads' : 'GitHub stars' }}</option>}</select></label>
     <div><span class="control-label">Forecast horizon</span><div class="buttons">@for (h of horizons; track h) {<button type="button" [attr.aria-pressed]="horizon() === h" (click)="horizon.set(h)">{{ h }}m</button>}</div></div>
   </section>
 
@@ -61,7 +61,7 @@
       <p class="eyebrow">Separate full-history fits · through August 2026</p><h3>24-month outlook and fitted parameters</h3>
       <p>These models are refitted through the final observed month. The outlook is not scored as part of the backtest. All five models, including naive baselines, are available.</p>
       <div class="selectors">
-        <label>Model<select [value]="model()" (change)="modelChange($any($event.target).value)">@for (m of models; track m) {<option [value]="m">{{ label(m) }}</option>}</select></label>
+        <label>Model<select (change)="modelChange($any($event.target).value)">@for (m of models; track m) {<option [value]="m" [selected]="m === model()">{{ label(m) }}</option>}</select></label>
         <label>Prediction interval<select [value]="interval()" (change)="intervalChange($any($event.target).value)"><option value="80">80%</option><option value="95">95%</option><option value="off">Off</option></select></label>
         <button type="button" [attr.aria-pressed]="logScale()" (click)="logScale.set(!logScale())">{{ logScale() ? 'Log scale: log₁₀(count + 1)' : 'Original count scale' }}</button>
       </div>
@@ -72,7 +72,7 @@
 
     <section class="panel" id="diagnostics">
       <p class="eyebrow">Exact saved models · {{ label(model()) }}</p><h3>Parameter estimation and residual adequacy</h3>
-      <label>Inspect saved model<select [value]="model()" (change)="modelChange($any($event.target).value)">@for (m of models; track m) {<option [value]="m">{{ label(m) }}</option>}</select></label>
+      <label>Inspect saved model<select (change)="modelChange($any($event.target).value)">@for (m of models; track m) {<option [value]="m" [selected]="m === model()">{{ label(m) }}</option>}</select></label>
       @if (modelFit(); as fit) {
         <dl class="fit-facts"><div><dt>Selected structure</dt><dd>{{ fit.specification }}</dd></div><div><dt>Optimizer</dt><dd>{{ fit.optimizer }}</dd></div><div><dt>Training window</dt><dd>{{ fit.train_start }} — {{ fit.origin }} · {{ fit.n_train }} months</dd></div><div><dt>AICc / log likelihood</dt><dd>{{ num(fit.aicc) }} / {{ num(fit.loglik) }}</dd></div><div><dt>Seed / convergence code</dt><dd>{{ fit.seed }} / {{ num(fit.convergence_code) }}</dd></div></dl>
       }
@@ -84,7 +84,7 @@
       <h4>Ljung–Box checks for all five full-history fits</h4>
       <div class="table-scroll"><table><thead><tr><th>Model</th><th>Residual n</th><th>Lag</th><th>Fit df</th><th>Test df</th><th>Q</th><th>p-value</th></tr></thead><tbody>@for (d of series.diagnostics; track d.model) {<tr [class.selected]="d.model === model()"><th>{{ label(d.model) }}</th><td>{{ d.n_residuals }}</td><td>{{ d.lag }}</td><td>{{ d.fitdf }}</td><td>{{ d.lag - d.fitdf }}</td><td>{{ num(d.ljung_box_q) }}</td><td>{{ num(d.p_value) }}</td></tr>}</tbody></table></div>
       <p class="note">Significance level 0.05. Lag = max(k + 3, min(24, floor(n / 5))); k = p + q + P + Q for SARIMA, 0 otherwise. ETS and Prophet p-values are exploratory, without a validated effective-df correction. Non-rejection does not establish independence or calibration. Npm React and Angular SARIMA retain residual dependence despite winning twelve-month RMSE.</p>
-      <h4>Residuals · {{ label(model()) }}</h4>
+      <h4 id="residuals" tabindex="-1">Residuals · {{ series.framework }} · {{ series.metric === 'npm-downloads' ? 'npm downloads' : 'GitHub stars' }} · {{ label(model()) }}</h4>
       <p>{{ model() === 'PROPHET' ? 'In-sample response residuals on the log1p scale.' : 'Model innovation residuals. Multiplicative ETS innovations are relative errors.' }} Residual magnitudes are not directly comparable between families.</p>
       <div class="chart">@defer {<canvas baseChart [data]="residualData()" [options]="residualOptions" type="line" role="img" aria-label="Saved full-history model residuals over time"></canvas>} @placeholder {<p>Loading chart…</p>}</div>
       <div class="two-columns">
