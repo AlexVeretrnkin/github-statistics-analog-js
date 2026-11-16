@@ -1,0 +1,33 @@
+<main>
+  <nav><a routerLink="/framework-popularity">Framework popularity dashboard</a></nav>
+  @if (entry(); as item) {
+    <article [attr.data-result]="result()">
+      <header>
+        <p class="edition">Article results · November 2026</p>
+        <h1>{{ item.label }}</h1>
+        <p id="result-caption">{{ item.caption }}</p>
+      </header>
+      @if (item.figure) {
+        <figure>
+          <img [src]="asset() + '.svg'" [alt]="item.caption">
+          <figcaption><a [href]="asset() + '.csv'" download>Download figure data (CSV)</a></figcaption>
+        </figure>
+      } @else {
+        @if (item.note) { <p class="note">{{ item.note }}</p> }
+        <div class="table-scroll" tabindex="0" role="region" [attr.aria-label]="item.label">
+          <table aria-labelledby="result-caption">
+            <thead><tr>@for (column of item.columns; track $index) {<th scope="col">{{ column }}</th>}</tr></thead>
+            <tbody>
+              @for (row of item.rows; track $index) {
+                <tr>@for (cell of row; track $index) {<td>{{ cell }}</td>}</tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </article>
+  } @else {
+    <h1>Article result not found</h1>
+    <p>Check the link in the figure or table caption.</p>
+  }
+</main>

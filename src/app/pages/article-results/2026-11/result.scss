@@ -1,0 +1,15 @@
+:host { display: block; color: #172033; font: 1rem/1.55 Roboto, sans-serif; }
+main { max-width: 76rem; margin: auto; padding: 1rem clamp(1rem, 4vw, 3rem) 3rem; }
+nav { margin: .75rem 0 2rem; }
+a { color: #086b8a; text-underline-offset: .2em; }
+article { padding: clamp(1rem, 4vw, 2.5rem); background: white; border: 1px solid #17203320; border-radius: 1rem; }
+.edition { font-size: .8rem; font-weight: 700; color: #086b8a; margin: 0; }
+h1 { margin: .25rem 0; font-size: clamp(2rem, 5vw, 3rem); line-height: 1.15; }
+p { max-width: 80ch; }
+.note, figcaption { font-size: .92rem; }
+.table-scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: start; padding: .55rem .7rem; border-bottom: 1px solid #17203320; }
+th { background: #f3f5f4; }
+figure { margin: 1rem 0 0; }
+img { display: block; width: 100%; height: auto; max-width: 60rem; margin: 0 auto 1rem; }
