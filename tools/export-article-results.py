@@ -20,7 +20,7 @@ INDEX = Path("supplement-data/index")
 
 def plain(tex):
     for old, new in [(r"\widehat\sigma^2", "σ̂²"), ("_{12}", "₁₂"),
-                     (r"\Delta", "Δ"), (r"\%", "%"), (r"\ref{fig:1}", "1"),
+                     (r"\Delta", "Δ"), (r"\log", "log"), (r"\%", "%"), (r"\ref{fig:1}", "1"),
                      ("--", "–"), ("~", " "), ("$", "")]:
         tex = tex.replace(old, new)
     if "\\" in tex or "{" in tex:
@@ -119,8 +119,10 @@ def export(source):
             number = ("S" if supplement else "") + str(counts[key])
             entry = {"label": f"{kind.title()} {number}", "caption": plain(CAPTION.search(line)[1])}
             if table:
-                columns, rows = table_cells(content[caption.end():], slug)
-                entry.update(columns=columns, rows=rows, note=table_note(file, slug))
+                block = re.split(r"\\end\{(?:table|minipage)\}", content[caption.end():], maxsplit=1)[0]
+                columns, rows = table_cells(block, slug)
+                note = re.search(r"^\\articletablenote\{(.*)\}$", block, re.M)
+                entry.update(columns=columns, rows=rows, note=plain(note[1]) if note else table_note(file, slug))
             else:
                 begin = content.rindex(r"\begin{figure}", 0, caption.start())
                 graphic = re.search(r"\\includegraphics\[[^\]]+\]\{([^}]+)\}", content[begin:caption.start()])
