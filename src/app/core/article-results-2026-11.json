@@ -22,7 +22,7 @@
         "Current-state history can be revised after unstars or account removal"
       ]
     ],
-    "note": ""
+    "note": "Each observation is a flow during one completed calendar month. The dates describe source coverage. A download counts an install request, and a star counts a dated addition reconstructed from accounts that still starred the repository at collection."
   },
   "github-stars-heldout": {
     "label": "Figure 1",
@@ -95,7 +95,7 @@
         "ETS"
       ]
     ],
-    "note": ""
+    "note": "The horizon h is the number of months after the last training observation. Each cell names the model family with the lowest root mean squared error (RMSE) across 24 forecasts at that horizon for that series. Naive repeats the last observed level."
   },
   "rmse-12-months": {
     "label": "Table 3",
@@ -165,11 +165,11 @@
         "168.34"
       ]
     ],
-    "note": ""
+    "note": "RMSE is the square root of the mean squared difference between forecast and observation across 24 origins, measured exactly 12 months ahead. Smaller values indicate smaller errors within a row. Naive repeats the last observed level. SNaive repeats the level from the same month of the previous year."
   },
   "intervals-12-months": {
     "label": "Table 4",
-    "caption": "Twelve-month diagnostics for the RMSE winner. Coverage and WAPE are percentages; width and interval score use millions for NPM and stars for GitHub.",
+    "caption": "Twelve-month diagnostics for the RMSE-optimal model within each series. Coverage and WAPE are percentages; width and interval score use millions for NPM and stars for GitHub.",
     "columns": [
       "Metric",
       "Framework",
@@ -242,7 +242,7 @@
         "24975.83"
       ]
     ],
-    "note": ""
+    "note": "WAPE is total absolute error divided by total observed activity, expressed as a percentage. Cov.80 and Cov.95 give the percentages of the 24 observations covered by the nominal 80% and 95% prediction intervals. For Angular stars, Cov.95 of 79.2 means 19 of 24. Width80 is the mean upper minus lower bound. IS80 is mean width plus a penalty for observations beyond either bound. Lower IS80 is better."
   },
   "residual-diagnostics": {
     "label": "Table 5",
@@ -312,7 +312,7 @@
         "<0.001"
       ]
     ],
-    "note": ""
+    "note": "Lag is the largest monthly lag tested for residual autocorrelation. For SARIMA, k counts fitted autoregressive and moving-average terms, including seasonal terms. The reference degrees of freedom equal lag minus k. A model-column p-value below 0.05 indicates evidence of remaining autocorrelation through the reported lag."
   },
   "index-direction-classes": {
     "label": "Table 6",
@@ -347,7 +347,7 @@
         "60"
       ]
     ],
-    "note": ""
+    "note": "Each entry counts months in which downloads and new stars had the indicated directions of change from the same month one year earlier. With opposing directions, the index sign is stable if it stays positive or stays negative for every download weight from 0.25 to 0.75. It is weight-sensitive if it reaches or crosses zero."
   },
   "index-weight-sensitivity": {
     "label": "Figure 3",
@@ -356,7 +356,7 @@
   },
   "index-component-sarima-6-months": {
     "label": "Figure 4",
-    "caption": "Six-month-ahead forecasts of the equal-weight dynamics index, by target month. Each point forecast uses component SARIMA models fitted six months earlier. Shading spans the 10th to 90th percentiles of 4,000 paired bootstrap paths; crosses mark observations outside the nominal 80% prediction interval. Panel counts give coverage over 24 origins. Vertical scales are logarithmic.",
+    "caption": "Six-month-ahead forecasts of the equal-weight dynamics index, by target month. Each point forecast uses component SARIMA models fitted six months earlier. Shading spans the 10th to 90th percentiles of 4,000 paired bootstrap paths; crosses mark observations outside the nominal 80% prediction interval. Vertical scales are logarithmic.",
     "figure": true
   },
   "index-route-comparison": {
@@ -520,7 +520,7 @@
         "11"
       ]
     ],
-    "note": ""
+    "note": "The horizon h is in months. For React at six months, SARIMA C combines separate forecasts of downloads and stars. Its weighted absolute percentage error (WAPE) is 4.33 percentage points below ordinary persistence and 3.68 points below direct SARIMA. Both SARIMA C and ordinary persistence predict the correct year-on-year direction at 20 of 24 origins."
   },
   "full-history-models": {
     "label": "Table 8",
@@ -576,7 +576,7 @@
         "0.74060"
       ]
     ],
-    "note": ""
+    "note": "SARIMA orders give the autoregressive order, differencing order and moving-average order, first for monthly lags and then, where present, for seasonal lags with a 12-month period. ETS lists error, trend and seasonality in that order. A is additive, Ad damped additive, M multiplicative and N absent. σ̂² estimates innovation variance on the log(1+X) scale."
   },
   "sarima-coefficients": {
     "label": "Table 9",
@@ -695,7 +695,7 @@
         "[-0.446, -0.034]"
       ]
     ],
-    "note": ""
+    "note": "AR and MA denote autoregressive and moving-average coefficients. The prefix S denotes a seasonal term. The numeral gives the lag in months for ordinary terms and in years for seasonal terms. SE is the estimated standard error. The interval is the coefficient estimate plus or minus 1.96 SE, conditional on the fitted SARIMA structure."
   },
   "npm-downloads-react-point-errors": {
     "label": "Table S1",
@@ -912,7 +912,7 @@
         "409.11"
       ]
     ],
-    "note": "24 expanding-window origins at each horizon h (months). Dimensional values use millions of downloads. WAPE is a percentage. SD, P10 and P90 summarize the absolute errors."
+    "note": "At each horizon h (months ahead), MAE is mean absolute error and RMSE is root mean squared error across 24 forecasts. SD is the standard deviation of their absolute errors. P10 and P90 are the 10th and 90th percentiles of those errors. These five columns use millions of downloads. WAPE is total absolute error as a percentage of total observed activity."
   },
   "npm-downloads-react-intervals": {
     "label": "Table S2",
@@ -1129,7 +1129,7 @@
         "631.83"
       ]
     ],
-    "note": "24 expanding-window origins at each horizon h (months). Dimensional values use millions of downloads. Coverage is a percentage; IS is the interval score."
+    "note": "At each horizon h (months ahead), Cov.80 and Cov.95 are the percentages of 24 observations covered by the nominal 80% and 95% prediction intervals. Width is the mean distance between the bounds. IS is the mean interval score, which adds a penalty to width when an observation falls outside the bounds. Width and IS use millions of downloads. Lower IS is better at the same nominal level."
   },
   "npm-downloads-angular-point-errors": {
     "label": "Table S3",
@@ -1346,7 +1346,7 @@
         "6.41"
       ]
     ],
-    "note": "24 expanding-window origins at each horizon h (months). Dimensional values use millions of downloads. WAPE is a percentage. SD, P10 and P90 summarize the absolute errors."
+    "note": "At each horizon h (months ahead), MAE is mean absolute error and RMSE is root mean squared error across 24 forecasts. SD is the standard deviation of their absolute errors. P10 and P90 are the 10th and 90th percentiles of those errors. These five columns use millions of downloads. WAPE is total absolute error as a percentage of total observed activity."
   },
   "npm-downloads-angular-intervals": {
     "label": "Table S4",
@@ -1563,7 +1563,7 @@
         "30.56"
       ]
     ],
-    "note": "24 expanding-window origins at each horizon h (months). Dimensional values use millions of downloads. Coverage is a percentage; IS is the interval score."
+    "note": "At each horizon h (months ahead), Cov.80 and Cov.95 are the percentages of 24 observations covered by the nominal 80% and 95% prediction intervals. Width is the mean distance between the bounds. IS is the mean interval score, which adds a penalty to width when an observation falls outside the bounds. Width and IS use millions of downloads. Lower IS is better at the same nominal level."
   },
   "npm-downloads-vue-point-errors": {
     "label": "Table S5",
@@ -1780,7 +1780,7 @@
         "25.87"
       ]
     ],
-    "note": "24 expanding-window origins at each horizon h (months). Dimensional values use millions of downloads. WAPE is a percentage. SD, P10 and P90 summarize the absolute errors."
+    "note": "At each horizon h (months ahead), MAE is mean absolute error and RMSE is root mean squared error across 24 forecasts. SD is the standard deviation of their absolute errors. P10 and P90 are the 10th and 90th percentiles of those errors. These five columns use millions of downloads. WAPE is total absolute error as a percentage of total observed activity."
   },
   "npm-downloads-vue-intervals": {
     "label": "Table S6",
@@ -1997,7 +1997,7 @@
         "203.14"
       ]
     ],
-    "note": "24 expanding-window origins at each horizon h (months). Dimensional values use millions of downloads. Coverage is a percentage; IS is the interval score."
+    "note": "At each horizon h (months ahead), Cov.80 and Cov.95 are the percentages of 24 observations covered by the nominal 80% and 95% prediction intervals. Width is the mean distance between the bounds. IS is the mean interval score, which adds a penalty to width when an observation falls outside the bounds. Width and IS use millions of downloads. Lower IS is better at the same nominal level."
   },
   "github-stars-react-point-errors": {
     "label": "Table S7",
@@ -2214,7 +2214,7 @@
         "373.30"
       ]
     ],
-    "note": "24 expanding-window origins at each horizon h (months). Dimensional values use monthly star increments. WAPE is a percentage. SD, P10 and P90 summarize the absolute errors."
+    "note": "At each horizon h (months ahead), MAE is mean absolute error and RMSE is root mean squared error across 24 forecasts. SD is the standard deviation of their absolute errors. P10 and P90 are the 10th and 90th percentiles of those errors. These five columns use monthly star additions. WAPE is total absolute error as a percentage of total observed activity."
   },
   "github-stars-react-intervals": {
     "label": "Table S8",
@@ -2431,7 +2431,7 @@
         "2848.70"
       ]
     ],
-    "note": "24 expanding-window origins at each horizon h (months). Dimensional values use monthly star increments. Coverage is a percentage; IS is the interval score."
+    "note": "At each horizon h (months ahead), Cov.80 and Cov.95 are the percentages of 24 observations covered by the nominal 80% and 95% prediction intervals. Width is the mean distance between the bounds. IS is the mean interval score, which adds a penalty to width when an observation falls outside the bounds. Width and IS use monthly star additions. Lower IS is better at the same nominal level."
   },
   "github-stars-angular-point-errors": {
     "label": "Table S9",
@@ -2648,7 +2648,7 @@
         "279.90"
       ]
     ],
-    "note": "24 expanding-window origins at each horizon h (months). Dimensional values use monthly star increments. WAPE is a percentage. SD, P10 and P90 summarize the absolute errors."
+    "note": "At each horizon h (months ahead), MAE is mean absolute error and RMSE is root mean squared error across 24 forecasts. SD is the standard deviation of their absolute errors. P10 and P90 are the 10th and 90th percentiles of those errors. These five columns use monthly star additions. WAPE is total absolute error as a percentage of total observed activity."
   },
   "github-stars-angular-intervals": {
     "label": "Table S10",
@@ -2865,7 +2865,7 @@
         "1614.67"
       ]
     ],
-    "note": "24 expanding-window origins at each horizon h (months). Dimensional values use monthly star increments. Coverage is a percentage; IS is the interval score."
+    "note": "At each horizon h (months ahead), Cov.80 and Cov.95 are the percentages of 24 observations covered by the nominal 80% and 95% prediction intervals. Width is the mean distance between the bounds. IS is the mean interval score, which adds a penalty to width when an observation falls outside the bounds. Width and IS use monthly star additions. Lower IS is better at the same nominal level."
   },
   "github-stars-vue-point-errors": {
     "label": "Table S11",
@@ -3082,7 +3082,7 @@
         "253.20"
       ]
     ],
-    "note": "24 expanding-window origins at each horizon h (months). Dimensional values use monthly star increments. WAPE is a percentage. SD, P10 and P90 summarize the absolute errors."
+    "note": "At each horizon h (months ahead), MAE is mean absolute error and RMSE is root mean squared error across 24 forecasts. SD is the standard deviation of their absolute errors. P10 and P90 are the 10th and 90th percentiles of those errors. These five columns use monthly star additions. WAPE is total absolute error as a percentage of total observed activity."
   },
   "github-stars-vue-intervals": {
     "label": "Table S12",
@@ -3299,7 +3299,7 @@
         "170488.85"
       ]
     ],
-    "note": "24 expanding-window origins at each horizon h (months). Dimensional values use monthly star increments. Coverage is a percentage; IS is the interval score."
+    "note": "At each horizon h (months ahead), Cov.80 and Cov.95 are the percentages of 24 observations covered by the nominal 80% and 95% prediction intervals. Width is the mean distance between the bounds. IS is the mean interval score, which adds a penalty to width when an observation falls outside the bounds. Width and IS use monthly star additions. Lower IS is better at the same nominal level."
   },
   "origin-frequencies": {
     "label": "Table S13",
@@ -3531,7 +3531,7 @@
         "6"
       ]
     ],
-    "note": "24 origins per series and horizon. Tied absolute errors divide one count equally."
+    "note": "At each horizon h (months ahead), one count goes to the model with the smallest absolute forecast error at each origin. Tied models divide that count equally, so each row totals 24. Naive repeats the last observation and SNaive repeats the observation from the same month one year earlier."
   },
   "index-react-point-errors": {
     "label": "Table S14",
@@ -3748,7 +3748,7 @@
         "29.03"
       ]
     ],
-    "note": "Equal-weight geometric index over 24 origins. D = direct index forecast; C = forecasts of the two components combined. MAE and RMSE use index points; WAPE is a percentage."
+    "note": "At each horizon h (months ahead), MAE is mean absolute error and RMSE is root mean squared error across 24 origins, both in index points. WAPE is total absolute error as a percentage of the sum of observed index levels. Smaller errors indicate more accurate forecasts. D forecasts the equal-weight index directly. C combines separate forecasts of downloads and stars."
   },
   "index-react-intervals": {
     "label": "Table S15",
@@ -3923,7 +3923,7 @@
         "9/41.8"
       ]
     ],
-    "note": "Equal-weight geometric index over 24 origins. D = direct index forecast; C = forecasts of the two components combined. Each cell gives the coverage count out of 24 / mean width in index points (single-month residual bootstrap)."
+    "note": "D forecasts the equal-weight index directly. C combines separate forecasts of downloads and stars. Each cell gives the number of observations covered out of 24, followed by the mean interval width in index points. For direct SARIMA at h=1 month, 18/21.3 means that the nominal 80% interval covered 18 observations and averaged 21.3 points wide."
   },
   "index-angular-point-errors": {
     "label": "Table S16",
@@ -4140,7 +4140,7 @@
         "16.64"
       ]
     ],
-    "note": "Equal-weight geometric index over 24 origins. D = direct index forecast; C = forecasts of the two components combined. MAE and RMSE use index points; WAPE is a percentage."
+    "note": "At each horizon h (months ahead), MAE is mean absolute error and RMSE is root mean squared error across 24 origins, both in index points. WAPE is total absolute error as a percentage of the sum of observed index levels. Smaller errors indicate more accurate forecasts. D forecasts the equal-weight index directly. C combines separate forecasts of downloads and stars."
   },
   "index-angular-intervals": {
     "label": "Table S17",
@@ -4315,7 +4315,7 @@
         "22/64.3"
       ]
     ],
-    "note": "Equal-weight geometric index over 24 origins. D = direct index forecast; C = forecasts of the two components combined. Each cell gives the coverage count out of 24 / mean width in index points (single-month residual bootstrap)."
+    "note": "D forecasts the equal-weight index directly. C combines separate forecasts of downloads and stars. Each cell gives the number of observations covered out of 24, followed by the mean interval width in index points. For direct SARIMA at h=1 month, 15/26.5 means that the nominal 80% interval covered 15 observations and averaged 26.5 points wide."
   },
   "index-vue-point-errors": {
     "label": "Table S18",
@@ -4532,7 +4532,7 @@
         "9.16"
       ]
     ],
-    "note": "Equal-weight geometric index over 24 origins. D = direct index forecast; C = forecasts of the two components combined. MAE and RMSE use index points; WAPE is a percentage."
+    "note": "At each horizon h (months ahead), MAE is mean absolute error and RMSE is root mean squared error across 24 origins, both in index points. WAPE is total absolute error as a percentage of the sum of observed index levels. Smaller errors indicate more accurate forecasts. D forecasts the equal-weight index directly. C combines separate forecasts of downloads and stars."
   },
   "index-vue-intervals": {
     "label": "Table S19",
@@ -4707,7 +4707,7 @@
         "24/1975.8"
       ]
     ],
-    "note": "Equal-weight geometric index over 24 origins. D = direct index forecast; C = forecasts of the two components combined. Each cell gives the coverage count out of 24 / mean width in index points (single-month residual bootstrap)."
+    "note": "D forecasts the equal-weight index directly. C combines separate forecasts of downloads and stars. Each cell gives the number of observations covered out of 24, followed by the mean interval width in index points. For direct SARIMA at h=1 month, 23/37.9 means that the nominal 80% interval covered 23 observations and averaged 37.9 points wide."
   },
   "index-direction-accuracy": {
     "label": "Table S20",
@@ -4870,7 +4870,7 @@
         "0"
       ]
     ],
-    "note": "Equal-weight geometric index over 24 origins. D = direct index forecast; C = forecasts of the two components combined."
+    "note": "For horizon h months ahead, one hit means that the predicted and observed changes from the same month one year earlier have the same sign (up, down or unchanged). Each column counts hits out of 24. Naive repeats the last observed index level and Seasonal repeats the level a year before the target month."
   },
   "index-weight-range": {
     "label": "Figure S7",
