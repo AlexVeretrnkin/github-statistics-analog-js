@@ -1,0 +1,35 @@
+import { TestBed } from '@angular/core/testing';
+import { provideRouter, Router } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ViewportScroller } from '@angular/common';
+import { ArticleExplorerComponent } from './article-explorer';
+import saved from '../../../../public/research/article-experiment/explorer.json';
+import catalog from '../../core/article-results-2026-11.json';
+import { articleResultLinks } from '../../core/article-result-links';
+
+it('maps every article result and restores the saved index forecast with its exact interval', async () => {
+  expect(Object.keys(articleResultLinks).sort()).toEqual(Object.keys(catalog).sort());
+  await TestBed.configureTestingModule({imports:[ArticleExplorerComponent],providers:[provideRouter([]),provideHttpClient(),provideHttpClientTesting()]}).overrideComponent(ArticleExplorerComponent,{set:{template:''}}).compileComponents();
+  const router=TestBed.inject(Router);
+  vi.spyOn(TestBed.inject(ViewportScroller),'scrollToAnchor').mockImplementation(()=>{});
+  await router.navigateByUrl('/?view=index-forecast&framework=React&indexModel=SARIMA&indexH=6&route=components&level=80#article-explorer');
+  const fixture=TestBed.createComponent(ArticleExplorerComponent);
+  TestBed.inject(HttpTestingController).expectOne('/research/article-experiment/explorer.json').flush(saved);
+  fixture.detectChanges();await fixture.whenStable();
+  const rows=fixture.componentInstance['rows']();
+  expect(rows).toHaveLength(24);
+  const expected=saved.indexPredictions.find(r=>r.framework==='React'&&r.model==='SARIMA'&&r.horizon===6&&r.route==='components')!;
+  expect(rows[0]).toEqual([expected.framework,expected.origin,expected.date,expected.actual,expected.point,expected.lo80,expected.hi80]);
+  await router.navigateByUrl('/?view=index-forecast&framework=Vue&indexModel=ETS&indexH=3&route=direct&level=95#article-explorer');
+  fixture.detectChanges();await fixture.whenStable();
+  const next=saved.indexPredictions.find(r=>r.framework==='Vue'&&r.model==='ETS'&&r.horizon===3&&r.route==='direct')!;
+  expect(fixture.componentInstance['rows']()[0]).toEqual([next.framework,next.origin,next.date,next.actual,next.point,next.lo95,next.hi95]);
+  await router.navigateByUrl('/?view=index-accuracy&framework=Angular&indexModel=all&indexH=all&route=all#article-explorer');
+  fixture.detectChanges();await fixture.whenStable();
+  expect(fixture.componentInstance['rows']()).toHaveLength(40);
+  await router.navigateByUrl('/?view=index-intervals&framework=React&indexModel=all&indexH=all&route=all#article-explorer');
+  fixture.detectChanges();await fixture.whenStable();
+  expect(fixture.componentInstance['rows']()).toHaveLength(80);
+  expect(new Set(fixture.componentInstance['rows']().map(r=>r[3]))).toEqual(new Set(['direct','components']));
+});

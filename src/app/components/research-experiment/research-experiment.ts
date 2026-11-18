@@ -1,3 +1,4 @@
+import { ArticleExplorerComponent } from '../article-explorer/article-explorer';
 import { CommonModule, ViewportScroller } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, inject, Injector, signal } from '@angular/core';
@@ -15,7 +16,7 @@ const COLORS: Record<ExperimentModel, string> = {
 
 @Component({
   selector: 'app-research-experiment', standalone: true,
-  imports: [CommonModule, BaseChartDirective, RouterLink],
+  imports: [CommonModule, BaseChartDirective, RouterLink, ArticleExplorerComponent],
   templateUrl: './research-experiment.html', styleUrl: './research-experiment.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -24,6 +25,7 @@ export class ResearchExperimentComponent {
   protected readonly error = signal(false);
   protected readonly unsupportedExperiment = signal(false);
   protected readonly allHorizons = signal(false);
+  protected readonly requestedFragment = signal('');
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   protected readonly seriesId = signal('npm-downloads_React');
@@ -47,7 +49,41 @@ export class ResearchExperimentComponent {
     series: this.seriesId(),
     h: this.allHorizons() ? 'all' : this.horizon(),
     model: this.model(),
+    summary: this.summaryView(),
   }));
+  protected readonly summaryView = signal('rmse');
+  protected readonly summaryRows = computed(() => {
+    const rows: string[][] = [];
+    for (const series of this.experiment()?.series ?? []) {
+      const name = [series.metric, series.framework];
+      const accuracy = series.accuracy.filter(r => r.horizon === this.horizon());
+      const optimal = [...accuracy].sort((a, b) => a.rmse - b.rmse)[0];
+      const n = (v: number | null | undefined) => this.num(v);
+      const dimensional = (v: number) => (v / (series.metric === 'npm-downloads' ? 1e6 : 1)).toFixed(2);
+      switch (this.summaryView()) {
+        case 'coverage': rows.push([...name, series.preparation.start, series.preparation.end, String(series.preparation.raw_months), String(series.preparation.months)]); break;
+        case 'rmse': rows.push([...name, ...this.models.map(m => dimensional(accuracy.find(r => r.model === m)!.rmse))]); break;
+        case 'intervals': rows.push([...name, this.label(optimal.model), optimal.wape_pct.toFixed(2), (100*optimal.coverage80).toFixed(2), (100*optimal.coverage95).toFixed(2), dimensional(optimal.width80), dimensional(optimal.interval_score80)]); break;
+        case 'diagnostics': rows.push([...name, n(series.diagnostics.find(d => d.model === 'SARIMA')?.lag), n(series.diagnostics.find(d => d.model === 'SARIMA')?.fitdf), ...['SARIMA','ETS','PROPHET'].map(m => n(series.diagnostics.find(d => d.model === m)?.p_value))]); break;
+        case 'models': for (const f of series.fits.filter(f => ['SARIMA','ETS'].includes(f.model))) rows.push([...name, f.model, f.specification, n(f.aicc), n(f.loglik), n(series.parameters.find(p => p.model === f.model && p.parameter === 'sigma2')?.estimate)]); break;
+        case 'parameters': for (const p of series.parameters.filter(p => p.model === this.model() && (this.model() !== 'SARIMA' || p.standard_error != null))) rows.push([...name, p.parameter, n(p.estimate), n(p.standard_error), n(p.lower95), n(p.upper95)]); break;
+        case 'stability': for (const h of (this.allHorizons() ? this.horizons : [this.horizon()])) rows.push([...name, String(h), ...this.models.map(m => n(series.stability.find(r => r.horizon === h && r.model === m)?.wins))]); break;
+      }
+    }
+    return rows;
+  });
+  protected readonly summaryColumns = computed(() => ['Metric', 'Framework', ...({
+    coverage: ['First retained month', 'Last month', 'Raw months', 'Retained months'],
+    rmse: this.models.map(m => this.label(m)),
+    intervals: ['Optimal model', 'WAPE %', 'Coverage 80 %', 'Coverage 95 %', 'Width 80', 'Interval score 80'],
+    diagnostics: ['Lag', 'Fit df', 'SARIMA p', 'ETS p', 'Prophet p'],
+    models: ['Model', 'Structure', 'AICc', 'Log likelihood', 'Innovation variance'],
+    parameters: ['Coefficient', 'Estimate', 'SE', 'Lower 95%', 'Upper 95%'],
+    stability: ['h', ...this.models.map(m => this.label(m))],
+  }[this.summaryView()] ?? [])]);
+  protected selectSummary(view: string): void {
+    void this.router.navigate([], { relativeTo: this.route, queryParams: { summary: view }, queryParamsHandling: 'merge', fragment: 'research-summary' });
+  }
   protected readonly winner = computed(() => this.accuracy()[0]);
   protected readonly baselineGain = computed(() => {
     const naive = this.accuracy().find(x => x.model === 'NAIVE');
@@ -155,6 +191,8 @@ export class ResearchExperimentComponent {
     combineLatest([results, route.queryParamMap, route.fragment]).pipe(takeUntilDestroyed()).subscribe({
       next: ([data, params, fragment]) => {
         this.experiment.set(data);
+        this.requestedFragment.set(fragment ?? '');
+        this.summaryView.set(params.get('summary') ?? 'rmse');
         const requestedExperiment = params.get('experiment');
         this.unsupportedExperiment.set(!!requestedExperiment && requestedExperiment !== data.id);
         if (this.unsupportedExperiment()) return;
@@ -164,8 +202,8 @@ export class ResearchExperimentComponent {
         const series = data.series.find(item => item.id === params.get('series'));
         this.seriesId.set(series?.id ?? 'npm-downloads_React');
         const model = params.get('model');
-        if (model) this.modelChange(model);
-        if (fragment && ['residuals', 'point-accuracy', 'comparison', 'stability', 'outlook', 'diagnostics', 'experiment-methods'].includes(fragment)) {
+        if (model && this.models.includes(model as ExperimentModel)) this.model.set(model as ExperimentModel);
+        if (fragment && ['residuals', 'research-summary', 'model-overview', 'parameter-estimates', 'interval-accuracy', 'point-accuracy', 'comparison', 'stability', 'outlook', 'diagnostics', 'experiment-methods'].includes(fragment)) {
           afterNextRender(() => scroller.scrollToAnchor(fragment), { injector });
         }
       },
@@ -197,7 +235,7 @@ export class ResearchExperimentComponent {
     return value.toLocaleString('en-US', { maximumSignificantDigits: 5 });
   }
   protected percent(value: number): string { return `${this.num(value * 100)}%`; }
-  protected modelChange(value: string): void { if (this.models.includes(value as ExperimentModel)) this.model.set(value as ExperimentModel); }
+  protected modelChange(value: string): void { if (this.models.includes(value as ExperimentModel)) { this.model.set(value as ExperimentModel); void this.router.navigate([], { relativeTo: this.route, queryParams: { model: value }, queryParamsHandling: 'merge', preserveFragment: true }); } }
   protected intervalChange(value: string): void { if (value === '80' || value === '95' || value === 'off') this.interval.set(value); }
   protected referenceBand(): string { return this.num(1.96 / Math.sqrt(this.diagnostic()?.n_residuals ?? 1)); }
 
