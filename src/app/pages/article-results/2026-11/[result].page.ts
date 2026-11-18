@@ -5,13 +5,13 @@ import type { RouteMeta } from '@analogjs/router';
 
 import catalog from '../../../core/article-results-2026-11.json';
 
+import { articleResultLinks } from '../../../core/article-result-links';
+
 export const routeMeta: RouteMeta = {
-  canActivate: [(route) => route.paramMap.get('result') === 'npm-downloads-react-point-errors'
-    ? inject(Router).createUrlTree(['/framework-popularity'], {
-        queryParams: { experiment: 'article-experiment-2026-10-18', series: 'npm-downloads_React', h: 'all' },
-        fragment: 'point-accuracy',
-      })
-    : true],
+  canActivate: [(route) => {
+    const target = articleResultLinks[route.paramMap.get('result') ?? ''];
+    return target ? inject(Router).createUrlTree(['/framework-popularity'], target) : true;
+  }],
 };
 
 interface ArticleResult {
