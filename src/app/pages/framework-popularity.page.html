@@ -125,17 +125,27 @@
     @if (visibleForecasts().length > 0) {
       <section class="forecast-strip" aria-label="Active forecasts">
       <div>
-        <p class="panel-kicker">24-month outlook</p>
+        <p class="panel-kicker">Saved forecast · 24 months from its training cutoff</p>
         <strong>{{ forecastHeading() }}</strong>
       </div>
       <div class="forecast-models">
         @for (forecast of visibleForecasts(); track forecast.framework + forecast.model) {
           <span>
             <b>{{ forecast.framework }}</b> · {{ formatForecastModel(forecast.model) }} · RMSE {{ formatRmse(forecast.validationRmse) }}
+            <br />Training through {{ forecast.originDate }} · targets {{ forecast.points[0]?.date }} — {{ forecast.points.at(-1)?.date }}
+            <br />@if (forecast.generatedAt) {
+              Built {{ forecast.generatedAt | date: 'yyyy-MM-dd HH:mm': 'UTC' }} UTC
+            } @else {
+              Build date was not recorded.
+              @if (forecast.archiveValidatedAt) { Archive checked {{ forecast.archiveValidatedAt | date: 'yyyy-MM-dd': 'UTC' }}. }
+            }
           </span>
         }
       </div>
       </section>
+      <p class="note">Observations received after the training cutoff can overlap this saved forecast. New observations do not refit it.
+        @if (selectedMetricId() === 'google-trends') { Google Trends rescales each collection window. Comparisons across collections require a common normalization. }
+      </p>
     }
 
     <section class="summary-grid" aria-label="Latest observations">

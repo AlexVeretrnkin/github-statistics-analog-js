@@ -65,16 +65,9 @@ write_csv_atomic <- function(data, path) {
   }
 }
 
-interest <- fetch_trends()
-weekly <- interest |>
-  dplyr::transmute(
-    date = as.Date(date),
-    framework = as.character(keyword),
-    interest = suppressWarnings(as.numeric(dplyr::if_else(hits == "<1", "0.5", as.character(hits))))
-  ) |>
-  dplyr::filter(framework %in% frameworks, !is.na(date), is.finite(interest)) |>
-  dplyr::group_by(date, framework) |>
-  dplyr::summarise(interest = mean(interest), .groups = "drop") |>
+source("google_trends_coverage.R", local = environment())
+prepared <- prepare_google_trends(fetch_trends(), today)
+weekly <- prepared$rows |>
   tidyr::pivot_wider(names_from = framework, values_from = interest) |>
   dplyr::arrange(date)
 
@@ -85,7 +78,7 @@ if (!all(frameworks %in% names(weekly))) {
 monthly <- weekly |>
   tidyr::pivot_longer(-date, names_to = "framework", values_to = "interest") |>
   dplyr::mutate(date = lubridate::floor_date(date, "month")) |>
-  dplyr::filter(date < lubridate::floor_date(today, "month")) |>
+  dplyr::filter(date >= min(weekly$date), date < as.Date(prepared$completed_month_before)) |>
   dplyr::group_by(date, framework) |>
   dplyr::summarise(interest = mean(interest, na.rm = TRUE), .groups = "drop") |>
   tidyr::pivot_wider(names_from = framework, values_from = interest) |>

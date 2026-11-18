@@ -7,6 +7,7 @@ import {
 } from '@github-statistics/ingestion-contracts';
 import { and, asc, count, eq, max, min, sql } from 'drizzle-orm';
 
+import { googleTrendsCompletedMonths } from './google-trends-months.js';
 import { getResearchDatabase } from './client.js';
 import { IngestionStateError } from './npm-ingestion.js';
 import { ensureResearchDatabaseSchema } from './migrations.js';
@@ -162,10 +163,21 @@ export async function commitGoogleTrendsIngestionRun(
     const stagedKeys = await transaction.select({
       date: googleTrendsWeeklyStaging.date,
       framework: googleTrendsWeeklyStaging.framework,
+      interest: googleTrendsWeeklyStaging.interest,
     }).from(googleTrendsWeeklyStaging)
       .where(eq(googleTrendsWeeklyStaging.runId, runId))
       .orderBy(asc(googleTrendsWeeklyStaging.framework), asc(googleTrendsWeeklyStaging.date));
     validateMatchingDates(stagedKeys);
+    const completeWeeksThrough = run.metadata['completeWeeksThrough'];
+    if (completeWeeksThrough !== undefined && (
+      typeof completeWeeksThrough !== 'string'
+      || completeWeeksThrough !== new Date(Date.parse(run.sourceDataThrough) + 6 * 86400000).toISOString().slice(0, 10)
+      || completeWeeksThrough >= new Date().toISOString().slice(0, 10)
+    )) {
+      throw new IngestionStateError('Invalid completed-week coverage for Google Trends.', 422);
+    }
+    const monthly = googleTrendsCompletedMonths(stagedKeys, completedMonthBefore, completeWeeksThrough as string | undefined);
+    if (!monthly.length) throw new IngestionStateError('Google Trends has no fully covered month.', 422);
 
     const activeRows = await transaction.select({
       sourceDataThrough: activeResearchDatasets.sourceDataThrough,
@@ -190,16 +202,9 @@ export async function commitGoogleTrendsIngestionRun(
     }).from(googleTrendsWeeklyStaging).where(eq(googleTrendsWeeklyStaging.runId, runId)));
 
     await transaction.delete(googleTrendsMonthly);
-    const monthExpression = sql<string>`date_trunc('month', ${googleTrendsWeekly.date})::date`;
-    await transaction.insert(googleTrendsMonthly).select(transaction.select({
-      framework: googleTrendsWeekly.framework,
-      period: monthExpression.as('period'),
-      interest: sql<number>`avg(${googleTrendsWeekly.interest})::double precision`.as('interest'),
-      lastRunId: sql<string>`${runId}::uuid`.as('last_run_id'),
-      updatedAt: sql<Date>`now()`.as('updated_at'),
-    }).from(googleTrendsWeekly)
-      .where(sql`${googleTrendsWeekly.date} < ${completedMonthBefore}::date`)
-      .groupBy(googleTrendsWeekly.framework, monthExpression));
+    await transaction.insert(googleTrendsMonthly).values(monthly.map(row => ({
+      ...row, lastRunId: runId, updatedAt: new Date(),
+    })));
 
     await transaction.insert(activeResearchDatasets)
       .values({ runId, source: 'google-trends', sourceDataThrough: run.sourceDataThrough })
@@ -332,6 +337,11 @@ function validateMatchingDates(rows: Array<{ date: string; framework: string }>)
     const dates = datesByFramework.get(row.framework) ?? [];
     dates.push(row.date);
     datesByFramework.set(row.framework, dates);
+  }
+  for (const dates of datesByFramework.values()) {
+    if (dates.some((date, index) => index > 0 && Date.parse(date) - Date.parse(dates[index - 1]) !== 7 * 86400000)) {
+      throw new IngestionStateError('Google Trends weekly dates contain a gap or irregular interval.', 422);
+    }
   }
   const signatures = [...datesByFramework.values()].map((dates) => dates.join(','));
   if (new Set(signatures).size !== 1) {

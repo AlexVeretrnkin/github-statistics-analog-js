@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 
 import {
   closeResearchDatabase,
+  googleTrendsCompletedMonths,
   listGoogleTrendsMonthlyForQuality,
   listGoogleTrendsWeeklyForQuality,
 } from '@github-statistics/research-database/quality';
@@ -23,7 +24,7 @@ process.env.DATABASE_URL ||= localDatabaseUrl();
 
 const payload = readIngestionPayload(inputPath);
 const sourceWeekly = payload.rows.map(normalizeWeeklyRow);
-const sourceMonthly = deriveCompletedMonthly(sourceWeekly, payload.completedMonthBefore);
+const sourceMonthly = googleTrendsCompletedMonths(sourceWeekly, payload.completedMonthBefore, payload.metadata?.completeWeeksThrough);
 
 let databaseWeekly;
 let databaseMonthly;
@@ -103,28 +104,6 @@ function normalizeWeeklyRow(row) {
     throw new Error(`Invalid Google Trends ingestion row: ${JSON.stringify(row)}`);
   }
   return { date: row.date, framework: row.framework, interest };
-}
-
-function deriveCompletedMonthly(rows, completedMonthBefore) {
-  if (!/^\d{4}-\d{2}-01$/.test(completedMonthBefore)) {
-    throw new Error(`Invalid completed-month boundary: ${completedMonthBefore}`);
-  }
-
-  const groups = new Map();
-  for (const row of rows.filter((item) => item.date < completedMonthBefore)) {
-    const period = `${row.date.slice(0, 7)}-01`;
-    const key = `${row.framework}\0${period}`;
-    const values = groups.get(key) ?? { framework: row.framework, period, sum: 0, count: 0 };
-    values.sum += row.interest;
-    values.count += 1;
-    groups.set(key, values);
-  }
-
-  return [...groups.values()].map((group) => ({
-    framework: group.framework,
-    interest: group.sum / group.count,
-    period: group.period,
-  }));
 }
 
 function validatePayload(payload, rows) {

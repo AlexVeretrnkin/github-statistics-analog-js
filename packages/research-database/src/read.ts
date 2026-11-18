@@ -4,10 +4,11 @@ import type {
   GoogleTrendsFramework,
   NpmPackage,
 } from '@github-statistics/ingestion-contracts';
-import { asc, lt } from 'drizzle-orm';
+import { asc, eq, lt } from 'drizzle-orm';
 
+import { googleTrendsCompletedMonths } from './google-trends-months.js';
 import { getResearchDatabase } from './client.js';
-import { githubStarMonthly, googleTrendsMonthly, npmDownloadMonthly } from './schema.js';
+import { githubStarMonthly, googleTrendsWeekly, researchPipelineRuns, npmDownloadMonthly } from './schema.js';
 
 export interface GitHubStarsMonthlyDatabaseRow {
   framework: GitHubStarFramework;
@@ -48,21 +49,23 @@ export async function listNpmMonthlyDownloads(): Promise<NpmMonthlyDatabaseRow[]
 }
 
 export async function listGoogleTrendsMonthly(): Promise<GoogleTrendsMonthlyDatabaseRow[]> {
-  const rows = await getResearchDatabase()
-    .select({
-      framework: googleTrendsMonthly.framework,
-      interest: googleTrendsMonthly.interest,
-      period: googleTrendsMonthly.period,
-    })
-    .from(googleTrendsMonthly)
-    .where(lt(googleTrendsMonthly.period, currentMonthStartUtc()))
-    .orderBy(asc(googleTrendsMonthly.framework), asc(googleTrendsMonthly.period));
-
-  return rows.map((row) => ({
-    framework: row.framework as GoogleTrendsFramework,
-    interest: row.interest,
-    period: row.period,
-  }));
+  // Validate legacy datasets at read time as well as new ingestion commits.
+  const rows = await getResearchDatabase().select({
+    framework: googleTrendsWeekly.framework,
+    date: googleTrendsWeekly.date,
+    interest: googleTrendsWeekly.interest,
+    metadata: researchPipelineRuns.metadata,
+  }).from(googleTrendsWeekly)
+    .innerJoin(researchPipelineRuns, eq(googleTrendsWeekly.lastRunId, researchPipelineRuns.id))
+    .orderBy(asc(googleTrendsWeekly.framework), asc(googleTrendsWeekly.date));
+  const metadata = rows[0]?.metadata;
+  const collectedBoundary = metadata?.['completedMonthBefore'];
+  const boundary = typeof collectedBoundary === 'string' && collectedBoundary < currentMonthStartUtc()
+    ? collectedBoundary : currentMonthStartUtc();
+  const completeWeeksThrough = metadata?.['completeWeeksThrough'];
+  return googleTrendsCompletedMonths(
+    rows, boundary, typeof completeWeeksThrough === 'string' ? completeWeeksThrough : undefined,
+  ).map(row => ({ ...row, framework: row.framework as GoogleTrendsFramework }));
 }
 
 export async function listGitHubStarsMonthly(): Promise<GitHubStarsMonthlyDatabaseRow[]> {

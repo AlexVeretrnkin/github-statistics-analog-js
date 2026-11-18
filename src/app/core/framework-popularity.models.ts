@@ -29,6 +29,11 @@ export interface FrameworkForecastPoint {
 }
 
 export interface FrameworkForecastSeries {
+  /** UTC build time is absent from legacy exports. */
+  generatedAt?: string | null;
+  archiveValidatedAt?: string | null;
+  originDate?: string;
+  originValue?: number | null;
   framework: FrameworkName;
   isBest: boolean;
   model: FrameworkForecastModel;

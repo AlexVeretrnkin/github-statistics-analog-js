@@ -2,7 +2,7 @@ import { CommonModule, ViewportScroller } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, inject, Injector, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { combineLatest } from 'rxjs';
 import { BaseChartDirective } from 'ng2-charts';
 import { Chart, type ChartConfiguration, type ChartDataset, type Plugin, registerables } from 'chart.js';
@@ -15,13 +15,17 @@ const COLORS: Record<ExperimentModel, string> = {
 
 @Component({
   selector: 'app-research-experiment', standalone: true,
-  imports: [CommonModule, BaseChartDirective],
+  imports: [CommonModule, BaseChartDirective, RouterLink],
   templateUrl: './research-experiment.html', styleUrl: './research-experiment.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ResearchExperimentComponent {
   protected readonly experiment = signal<ResearchExperiment | null>(null);
   protected readonly error = signal(false);
+  protected readonly unsupportedExperiment = signal(false);
+  protected readonly allHorizons = signal(false);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   protected readonly seriesId = signal('npm-downloads_React');
   protected readonly horizon = signal<ExperimentHorizon>(12);
   protected readonly model = signal<ExperimentModel>('SARIMA');
@@ -34,6 +38,16 @@ export class ResearchExperimentComponent {
   protected readonly current = computed(() => this.experiment()?.series.find(s => s.id === this.seriesId()));
   protected readonly accuracy = computed(() => [...(this.current()?.accuracy ?? [])]
     .filter(r => r.horizon === this.horizon()).sort((a, b) => a.rmse - b.rmse));
+  protected readonly pointAccuracy = computed(() => this.allHorizons()
+    ? [...(this.current()?.accuracy ?? [])].sort((a, b) =>
+        a.horizon - b.horizon || this.models.indexOf(a.model) - this.models.indexOf(b.model))
+    : this.accuracy());
+  protected readonly accuracyLinkParams = computed(() => ({
+    experiment: this.experiment()?.id,
+    series: this.seriesId(),
+    h: this.allHorizons() ? 'all' : this.horizon(),
+    model: this.model(),
+  }));
   protected readonly winner = computed(() => this.accuracy()[0]);
   protected readonly baselineGain = computed(() => {
     const naive = this.accuracy().find(x => x.model === 'NAIVE');
@@ -141,16 +155,38 @@ export class ResearchExperimentComponent {
     combineLatest([results, route.queryParamMap, route.fragment]).pipe(takeUntilDestroyed()).subscribe({
       next: ([data, params, fragment]) => {
         this.experiment.set(data);
+        const requestedExperiment = params.get('experiment');
+        this.unsupportedExperiment.set(!!requestedExperiment && requestedExperiment !== data.id);
+        if (this.unsupportedExperiment()) return;
+        const h = params.get('h');
+        this.allHorizons.set(h === 'all');
+        this.horizon.set(this.horizons.includes(Number(h) as ExperimentHorizon) ? Number(h) as ExperimentHorizon : 12);
         const series = data.series.find(item => item.id === params.get('series'));
-        if (series) this.seriesId.set(series.id);
+        this.seriesId.set(series?.id ?? 'npm-downloads_React');
         const model = params.get('model');
         if (model) this.modelChange(model);
-        if (fragment === 'residuals') {
+        if (fragment && ['residuals', 'point-accuracy', 'comparison', 'stability', 'outlook', 'diagnostics', 'experiment-methods'].includes(fragment)) {
           afterNextRender(() => scroller.scrollToAnchor(fragment), { injector });
         }
       },
       error: () => this.error.set(true),
     });
+  }
+
+  protected selectSeries(series: string): void {
+    void this.router.navigate([], {
+      relativeTo: this.route, queryParams: { series }, queryParamsHandling: 'merge', preserveFragment: true,
+    });
+  }
+  protected selectHorizon(h: ExperimentHorizon | 'all'): void {
+    void this.router.navigate([], {
+      relativeTo: this.route, queryParams: { h }, queryParamsHandling: 'merge', preserveFragment: true,
+    });
+  }
+  protected accuracyNumber(value: number, isError = false): string {
+    if (!this.allHorizons()) return this.num(value);
+    const divisor = isError && this.current()?.metric === 'npm-downloads' ? 1_000_000 : 1;
+    return (value / divisor).toFixed(2);
   }
 
   protected label(model: ExperimentModel): string {
