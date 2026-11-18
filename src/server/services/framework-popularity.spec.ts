@@ -27,6 +27,15 @@ describe('framework popularity research', () => {
       );
       expect(metric.forecasts.filter((forecast) => forecast.isBest)).toHaveLength(3);
       expect(metric.forecasts.every((forecast) => forecast.points.length === 24)).toBe(true);
+      for (const forecast of metric.forecasts) {
+        // Legacy exports have no reliable build timestamp or saved training value.
+        expect(forecast.generatedAt).toBeNull();
+        expect(forecast.originValue).toBeNull();
+        expect(forecast.archiveValidatedAt).toBeTruthy();
+        const firstTarget = new Date(forecast.points[0].date + '-01T00:00:00Z');
+        firstTarget.setUTCMonth(firstTarget.getUTCMonth() - 1);
+        expect(forecast.originDate).toBe(firstTarget.toISOString().slice(0, 7));
+      }
     }
   });
 

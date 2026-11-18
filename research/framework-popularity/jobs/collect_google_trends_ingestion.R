@@ -49,16 +49,9 @@ fetch_trends <- function(retries = 6) {
   stop("Google Trends returned no usable data after retries.")
 }
 
-rows <- fetch_trends() |>
-  dplyr::transmute(
-    date = as.Date(date),
-    framework = as.character(keyword),
-    interest = suppressWarnings(as.numeric(dplyr::if_else(hits == "<1", "0.5", as.character(hits))))
-  ) |>
-  dplyr::filter(framework %in% frameworks, !is.na(date), is.finite(interest)) |>
-  dplyr::group_by(date, framework) |>
-  dplyr::summarise(interest = mean(interest), .groups = "drop") |>
-  dplyr::arrange(framework, date)
+source("google_trends_coverage.R", local = environment())
+prepared <- prepare_google_trends(fetch_trends(), today)
+rows <- prepared$rows
 
 if (!setequal(unique(rows$framework), frameworks)) {
   stop("Google Trends response did not contain all expected frameworks.")
@@ -86,9 +79,11 @@ saveRDS(
   list(
     schema_version = 1L,
     source_data_through = as.character(max(rows$date)),
-    completed_month_before = format(today, "%Y-%m-01"),
+    completed_month_before = prepared$completed_month_before,
     metadata = list(
       category = category,
+      completeWeeksThrough = prepared$complete_weeks_through,
+      excludedPartialWeekStarts = prepared$excluded_week_starts,
       geo = geo,
       language = language,
       property = "web",

@@ -90,7 +90,7 @@ export default class FrameworkPopularityPageComponent {
       const points = item.points.filter((point) => !earliestDate || point.date >= earliestDate);
       return {
         framework: item.framework,
-        points: transformPoints(points, this.selectedScale()),
+        points: transformPoints(points, this.selectedScale(), this.getForecastBaseline(item.framework)),
       };
     });
   });
@@ -106,6 +106,11 @@ export default class FrameworkPopularityPageComponent {
       && (mode === 'best' ? forecast.isBest : forecast.model === mode),
     ).map((forecast) => ({
       ...forecast,
+      originValue: forecast.originValue == null ? null : transformPoints(
+        [{ date: forecast.originDate!, value: forecast.originValue }],
+        this.selectedScale(),
+        this.getForecastBaseline(forecast.framework),
+      )[0].value,
       points: transformForecastPoints(
         forecast.points,
         this.selectedScale(),
@@ -239,6 +244,7 @@ export default class FrameworkPopularityPageComponent {
 function transformPoints(
   points: FrameworkPopularitySeries['points'],
   scale: FrameworkPopularityScale,
+  referenceValue?: number,
 ): FrameworkPopularitySeries['points'] {
   if (scale === 'absolute') {
     return points;
@@ -248,7 +254,7 @@ function transformPoints(
     return points.map((point) => ({ ...point, value: Math.log10(point.value + 1) }));
   }
 
-  const baseline = points.find((point) => point.value > 0)?.value ?? 1;
+  const baseline = referenceValue ?? points.find((point) => point.value > 0)?.value ?? 1;
   return points.map((point) => ({ ...point, value: (point.value / baseline) * 100 }));
 }
 

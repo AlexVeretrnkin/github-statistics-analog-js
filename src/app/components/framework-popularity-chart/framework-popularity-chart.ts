@@ -34,7 +34,10 @@ export class FrameworkPopularityChartComponent {
     const forecasts = this.forecasts();
     const labels = [...new Set([
       ...series.flatMap((item) => item.points.map((point) => point.date)),
-      ...forecasts.flatMap((item) => item.points.map((point) => point.date)),
+      ...forecasts.flatMap((item) => [
+        ...(item.originDate && item.originValue != null ? [item.originDate] : []),
+        ...item.points.map((point) => point.date),
+      ]),
     ])].sort();
 
     const historicalDatasets = series.map((item) => {
@@ -59,11 +62,9 @@ export class FrameworkPopularityChartComponent {
     });
 
     const forecastDatasets = forecasts.flatMap((forecast) => {
-      const history = series.find((item) => item.framework === forecast.framework);
-      const lastHistoricalPoint = history?.points.at(-1);
       const color = FRAMEWORK_COLORS[forecast.framework] ?? '#193cb8';
-      const forecastPoints = lastHistoricalPoint
-        ? [{ date: lastHistoricalPoint.date, mean: lastHistoricalPoint.value }, ...forecast.points]
+      const forecastPoints = forecast.originDate && forecast.originValue != null
+        ? [{ date: forecast.originDate, mean: forecast.originValue }, ...forecast.points]
         : forecast.points;
       const meanValues = new Map(forecastPoints.map((point) => [point.date, point.mean]));
       const lowerValues = new Map(forecast.points.map((point) => [point.date, point.lo80]));

@@ -147,3 +147,5 @@ export async function listGitHubStarsMonthlyForQuality(): Promise<GitHubStarsMon
 }
 
 export { closeResearchDatabase };
+
+export { googleTrendsCompletedMonths } from './google-trends-months.js';

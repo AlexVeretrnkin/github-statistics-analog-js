@@ -117,6 +117,7 @@ function buildGithubStarsMetricFromDatabase(
   return {
     ...generatedMetric,
     sourceLabel: 'GitHub REST API · scheduled database ingestion',
+    methodology: 'Daily counts from the official star-history endpoint are summed into completed calendar months. Historical counts may change after unstars or account removal.',
     series: seriesFromBuckets(pointsByFramework),
   };
 }
@@ -301,6 +302,10 @@ function buildLegacyGithubStarsMetric(): FrameworkPopularityMetric {
 
 function loadForecasts(): Map<FrameworkPopularityMetricId, FrameworkForecastSeries[]> {
   const rows = readCsv('out/framework_popularity_forecasts.csv');
+  const manifestPath = join(RESEARCH_ROOT, 'out/refresh_manifest.json');
+  const archiveValidatedAt = existsSync(manifestPath)
+    ? JSON.parse(readFileSync(manifestPath, 'utf8')).generated_at ?? null
+    : null;
   const grouped = new Map<string, FrameworkForecastSeries>();
 
   for (const row of rows) {
@@ -308,9 +313,13 @@ function loadForecasts(): Map<FrameworkPopularityMetricId, FrameworkForecastSeri
     const framework = requireCell(row, 'framework') as FrameworkName;
     const model = requireCell(row, 'model') as FrameworkForecastModel;
     const key = `${metric}:${framework}:${model}`;
-    const existing = grouped.get(key) ?? {
+    const existing: FrameworkForecastSeries = grouped.get(key) ?? {
       framework,
       model,
+      generatedAt: row['generated_at'] || null,
+      archiveValidatedAt,
+      originDate: row['origin_date'] ? monthKey(row['origin_date']) : previousForecastMonth(requireCell(row, 'date')),
+      originValue: row['origin_value'] ? parseNumber(row['origin_value']) : null,
       isBest: requireCell(row, 'is_best') === 'TRUE',
       validationRmse: parseNumber(requireCell(row, 'validation_rmse')),
       points: [],
@@ -329,6 +338,10 @@ function loadForecasts(): Map<FrameworkPopularityMetricId, FrameworkForecastSeri
 
   const byMetric = new Map<FrameworkPopularityMetricId, FrameworkForecastSeries[]>();
   for (const [key, series] of grouped) {
+    series.points.sort((a, b) => a.date.localeCompare(b.date));
+    if (!series.generatedAt) {
+      series.originDate = previousForecastMonth(series.points[0].date + '-01');
+    }
     const metric = key.split(':')[0] as FrameworkPopularityMetricId;
     const existing = byMetric.get(metric) ?? [];
     existing.push(series);
@@ -336,6 +349,12 @@ function loadForecasts(): Map<FrameworkPopularityMetricId, FrameworkForecastSeri
   }
 
   return byMetric;
+}
+
+function previousForecastMonth(value: string): string {
+  const date = new Date(value);
+  date.setUTCMonth(date.getUTCMonth() - 1);
+  return date.toISOString().slice(0, 7);
 }
 
 function loadDiagnostics(): FrameworkPopularityDiagnostic[] {

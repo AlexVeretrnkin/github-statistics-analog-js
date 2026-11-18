@@ -1,7 +1,18 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
+
+import type { RouteMeta } from '@analogjs/router';
 
 import catalog from '../../../core/article-results-2026-11.json';
+
+export const routeMeta: RouteMeta = {
+  canActivate: [(route) => route.paramMap.get('result') === 'npm-downloads-react-point-errors'
+    ? inject(Router).createUrlTree(['/framework-popularity'], {
+        queryParams: { experiment: 'article-experiment-2026-10-18', series: 'npm-downloads_React', h: 'all' },
+        fragment: 'point-accuracy',
+      })
+    : true],
+};
 
 interface ArticleResult {
   label: string;

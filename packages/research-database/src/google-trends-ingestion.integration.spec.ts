@@ -50,6 +50,30 @@ describeDatabase('Google Trends PostgreSQL ingestion', () => {
     );
     expect(monthly.every((row) => row.interest >= 0 && row.interest <= 100)).toBe(true);
   });
+  it('includes a certified October and rejects a missing week without replacing the active dataset', async () => {
+    const dates = weeklyDates('2021-10-31', 261);
+    expect(dates.at(-1)).toBe('2026-10-25');
+    const input = {
+      completedMonthBefore: '2026-11-01', gitSha: 'integration-test', schemaVersion: 1,
+      sourceDataThrough: dates.at(-1)!, metadata: { completeWeeksThrough: '2026-10-31' },
+    };
+    const rows = GOOGLE_TRENDS_FRAMEWORKS.flatMap(framework =>
+      dates.map(date => ({ framework, date, interest: 20 })),
+    );
+    const run = await createGoogleTrendsIngestionRun(input);
+    await writeGoogleTrendsIngestionBatch(run.runId, 0, { rows });
+    await commitGoogleTrendsIngestionRun(run.runId);
+    const monthly = await listGoogleTrendsMonthly();
+    expect(monthly.filter(row => row.period === '2026-10-01')).toHaveLength(3);
+    expect(monthly.some(row => row.period === '2021-10-01' || row.period === '2026-11-01')).toBe(false);
+    const gap = await createGoogleTrendsIngestionRun(input);
+    await writeGoogleTrendsIngestionBatch(gap.runId, 0, {
+      rows: rows.filter(row => row.date !== '2026-10-11'),
+    });
+    await expect(commitGoogleTrendsIngestionRun(gap.runId)).rejects.toThrow();
+    expect((await getGoogleTrendsIngestionCheckpoint()).activeRunId).toBe(run.runId);
+  });
+
 });
 
 function weeklyDates(start: string, count: number): string[] {
