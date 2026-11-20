@@ -1,7 +1,7 @@
 import { ArticleExplorerComponent } from '../article-explorer/article-explorer';
 import { CommonModule, ViewportScroller } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { afterNextRender, ChangeDetectionStrategy, Component, computed, inject, Injector, signal } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, ElementRef, inject, Injector, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { combineLatest } from 'rxjs';
@@ -26,6 +26,19 @@ export class ResearchExperimentComponent {
   protected readonly unsupportedExperiment = signal(false);
   protected readonly allHorizons = signal(false);
   protected readonly requestedFragment = signal('');
+  protected readonly compareResiduals = signal(false);
+  protected readonly section = computed(() => {
+    const fragment = this.requestedFragment();
+    if (['diagnostics', 'residuals', 'parameter-estimates'].includes(fragment)) return 'diagnostics';
+    if (['stability', 'outlook', 'experiment-methods', 'article-explorer', 'research-summary', 'model-overview'].includes(fragment)) return fragment;
+    return 'comparison';
+  });
+  protected readonly sections = [
+    ['comparison', 'Accuracy'], ['model-overview', 'Model overview'],
+    ['diagnostics', 'Parameters & residuals'], ['stability', 'Stability'],
+    ['article-explorer', 'Forecast comparisons & index'], ['outlook', 'Outlook'],
+    ['research-summary', 'All-series summary'], ['experiment-methods', 'Methods & downloads'],
+  ];
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   protected readonly seriesId = signal('npm-downloads_React');
@@ -48,7 +61,7 @@ export class ResearchExperimentComponent {
     experiment: this.experiment()?.id,
     series: this.seriesId(),
     h: this.allHorizons() ? 'all' : this.horizon(),
-    model: this.model(),
+    model: this.compareResiduals() ? 'all' : this.model(),
     summary: this.summaryView(),
   }));
   protected readonly summaryView = signal('rmse');
@@ -92,8 +105,6 @@ export class ResearchExperimentComponent {
   protected readonly stability = computed(() => this.current()?.stability.filter(r => r.horizon === this.horizon()) ?? []);
   protected readonly modelFit = computed(() => this.current()?.fits.find(f => f.model === this.model()));
   protected readonly parameters = computed(() => this.current()?.parameters.filter(p => p.model === this.model()) ?? []);
-  protected readonly diagnostic = computed(() => this.current()?.diagnostics.find(d => d.model === this.model()));
-  protected readonly residuals = computed(() => this.current()?.residuals.filter(r => r.model === this.model()) ?? []);
   protected readonly origins = computed(() => [...new Set(this.current()?.backtest.map(p => p.origin) ?? [])].sort());
   protected readonly originRows = computed(() => this.current()?.backtest.filter(p => p.origin === this.origin() && p.horizon === this.horizon()) ?? []);
   protected readonly overview = computed(() => this.experiment()?.series.map(s => ({
@@ -116,25 +127,34 @@ export class ResearchExperimentComponent {
     datasets: [{ label: 'Weighted wins / 24', data: this.stability().map(r => r.wins),
       backgroundColor: this.stability().map(r => COLORS[r.model]) }],
   }));
-  protected readonly residualData = computed<ChartConfiguration<'line'>['data']>(() => ({
-    labels: this.residuals().map(r => r.date),
-    datasets: [{ label: 'Saved-fit residual', data: this.residuals().map(r => r.residual), borderColor: COLORS[this.model()],
-      borderWidth: 1, pointRadius: 0 }],
-  }));
-  protected readonly acfData = computed<ChartConfiguration<'bar'>['data']>(() => {
-    const acf = this.current()?.acf.filter(r => r.model === this.model() && r.lag > 0) ?? [];
-    return { labels: acf.map(r => r.lag), datasets: [
-      { label: 'Residual ACF (lag 0 omitted)', data: acf.map(r => r.acf), backgroundColor: COLORS[this.model()] },
-    ] };
-  });
-  protected readonly histogramData = computed<ChartConfiguration<'bar'>['data']>(() => {
-    const values = this.residuals().map(r => r.residual).filter((v): v is number => v !== null && Number.isFinite(v));
-    if (!values.length) return { labels: [], datasets: [] };
-    const min = Math.min(...values), max = Math.max(...values), width = (max - min || 1) / 15;
-    const bins = Array<number>(15).fill(0);
-    for (const v of values) bins[Math.min(14, Math.floor((v - min) / width))]++;
-    return { labels: bins.map((_, i) => `${this.num(min + i * width)} to ${this.num(min + (i + 1) * width)}`),
-      datasets: [{ label: 'Residual count', data: bins, backgroundColor: COLORS[this.model()] }] };
+  protected readonly residualPanels = computed(() => {
+    const series = this.current();
+    const models: ExperimentModel[] = this.compareResiduals() ? ['SARIMA', 'ETS', 'PROPHET'] : [this.model()];
+    return models.map(model => {
+      const residuals = series?.residuals.filter(r => r.model === model) ?? [];
+      const diagnostic = series?.diagnostics.find(d => d.model === model);
+      const acf = series?.acf.filter(r => r.model === model && r.lag > 0) ?? [];
+      const values = residuals.map(r => r.residual).filter((v): v is number => v !== null && Number.isFinite(v));
+      const min = values.length ? Math.min(...values) : 0;
+      const max = values.length ? Math.max(...values) : 0;
+      const width = (max - min || 1) / 15;
+      const bins = Array<number>(15).fill(0);
+      for (const value of values) bins[Math.min(14, Math.floor((value - min) / width))]++;
+      const band = diagnostic?.n_residuals ? 1.96 / Math.sqrt(diagnostic.n_residuals) : null;
+      const residualData: ChartConfiguration<'line'>['data'] = {
+        labels: residuals.map(r => r.date),
+        datasets: [{ label: `${this.label(model)} residual`, data: residuals.map(r => r.residual),
+          borderColor: COLORS[model], borderWidth: 1, pointRadius: 0 }],
+      };
+      const acfData: ChartConfiguration<'bar'>['data'] = {
+        labels: acf.map(r => r.lag), datasets: [{ label: 'Residual ACF (lag 0 omitted)', data: acf.map(r => r.acf), backgroundColor: COLORS[model] }],
+      };
+      const histogramData: ChartConfiguration<'bar'>['data'] = {
+        labels: bins.map((_, i) => `${this.num(min + i * width)} to ${this.num(min + (i + 1) * width)}`),
+        datasets: [{ label: 'Residual count', data: bins, backgroundColor: COLORS[model] }],
+      };
+      return { model, diagnostic, band, residualData, acfData, histogramData, acfPlugins: this.referenceBands(band) };
+    });
   });
   protected readonly forecastData = computed<ChartConfiguration<'line'>['data']>(() => {
     const observed = this.current()?.history.slice(-36) ?? [];
@@ -164,12 +184,10 @@ export class ResearchExperimentComponent {
     plugins: { legend: { display: false } },
     scales: { y: { beginAtZero: true }, x: { ticks: { maxTicksLimit: 6, maxRotation: 0 } } },
   };
-  protected readonly acfPlugins: Plugin<'bar'>[] = [{
-    id: 'residual-reference-bands',
-    afterDatasetsDraw: chart => {
+  private referenceBands(band: number | null): Plugin<'bar'>[] {
+    return [{ id: 'residual-reference-bands', afterDatasetsDraw: chart => {
       const y = chart.scales['y'];
-      if (!y) return;
-      const band = 1.96 / Math.sqrt(this.diagnostic()?.n_residuals ?? 1);
+      if (!y || band === null) return;
       const { ctx, chartArea } = chart;
       ctx.save(); ctx.strokeStyle = '#526078'; ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
       for (const value of [-band, band]) {
@@ -177,8 +195,8 @@ export class ResearchExperimentComponent {
         ctx.beginPath(); ctx.moveTo(chartArea.left, pixel); ctx.lineTo(chartArea.right, pixel); ctx.stroke();
       }
       ctx.restore();
-    },
-  }];
+    } }];
+  }
   protected readonly acfOptions: ChartConfiguration<'bar'>['options'] = {
     ...this.barOptions, scales: { y: { min: -1, max: 1 }, x: { title: { display: true, text: 'Lag (months)' }, ticks: { maxTicksLimit: 8 } } },
   };
@@ -187,6 +205,7 @@ export class ResearchExperimentComponent {
     const route = inject(ActivatedRoute);
     const scroller = inject(ViewportScroller);
     const injector = inject(Injector);
+    const host = inject<ElementRef<HTMLElement>>(ElementRef);
     const results = inject(HttpClient).get<ResearchExperiment>(`${this.assetRoot}results.json`);
     combineLatest([results, route.queryParamMap, route.fragment]).pipe(takeUntilDestroyed()).subscribe({
       next: ([data, params, fragment]) => {
@@ -202,9 +221,20 @@ export class ResearchExperimentComponent {
         const series = data.series.find(item => item.id === params.get('series'));
         this.seriesId.set(series?.id ?? 'npm-downloads_React');
         const model = params.get('model');
-        if (model && this.models.includes(model as ExperimentModel)) this.model.set(model as ExperimentModel);
+        this.compareResiduals.set(model === 'all');
+        this.model.set(model && this.models.includes(model as ExperimentModel) ? model as ExperimentModel : 'SARIMA');
         if (fragment && ['residuals', 'research-summary', 'model-overview', 'parameter-estimates', 'interval-accuracy', 'point-accuracy', 'comparison', 'stability', 'outlook', 'diagnostics', 'experiment-methods'].includes(fragment)) {
-          afterNextRender(() => scroller.scrollToAnchor(fragment), { injector });
+          afterNextRender(() => {
+            const target = host.nativeElement.querySelector<HTMLElement>('#' + fragment);
+            // Deep links reveal their table before scrolling, including on Back/Forward.
+            for (let element: HTMLElement | null = target; element && element !== host.nativeElement; element = element.parentElement) {
+              if (element instanceof HTMLDetailsElement) element.open = true;
+            }
+            const table = target?.querySelector<HTMLDetailsElement>('details.result-table');
+            if (table) table.open = true;
+            scroller.scrollToAnchor(fragment);
+            target?.focus({ preventScroll: true });
+          }, { injector });
         }
       },
       error: () => this.error.set(true),
@@ -237,7 +267,11 @@ export class ResearchExperimentComponent {
   protected percent(value: number): string { return `${this.num(value * 100)}%`; }
   protected modelChange(value: string): void { if (this.models.includes(value as ExperimentModel)) { this.model.set(value as ExperimentModel); void this.router.navigate([], { relativeTo: this.route, queryParams: { model: value }, queryParamsHandling: 'merge', preserveFragment: true }); } }
   protected intervalChange(value: string): void { if (value === '80' || value === '95' || value === 'off') this.interval.set(value); }
-  protected referenceBand(): string { return this.num(1.96 / Math.sqrt(this.diagnostic()?.n_residuals ?? 1)); }
+  protected residualModelChange(value: string): void {
+    if (value === 'all' || this.models.includes(value as ExperimentModel)) {
+      void this.router.navigate([], { relativeTo: this.route, queryParams: { model: value }, queryParamsHandling: 'merge', fragment: 'residuals' });
+    }
+  }
 
   private options(unit: string): ChartConfiguration<'line'>['options'] {
     return { responsive: true, maintainAspectRatio: false, animation: false,

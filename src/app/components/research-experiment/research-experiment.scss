@@ -40,3 +40,14 @@ dd { margin: .4rem 0 0; color: #526078; line-height: 1.6; font-size: .85rem; }
 .downloads a { font-size: .82rem; overflow-wrap: anywhere; }
 :focus-visible { outline: 3px solid #087ea4; outline-offset: 3px; }
 @media(max-width: 720px) { .two-columns { grid-template-columns: minmax(0, 1fr); } .chart.tall { height: 18rem; } .selectors { align-items: stretch; } label { max-width: 100%; } }
+
+.section-nav { margin-top: 1rem; }
+.section-nav a { padding: .5rem .65rem; border-radius: .4rem; }
+.section-nav a[aria-current=page] { background: #086b8a; color: white; text-decoration: none; }
+.buttons { flex-wrap: wrap; }
+.result-table { scroll-margin-top: 1rem; }
+.residual-panel { border-top: 1px solid #17203325; margin-top: 1.5rem; padding-top: 1.5rem; }
+.residual-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.2rem; }
+.residual-grid > div { min-width: 0; }
+.residual-grid h4 { margin-top: 0; }
+@media(max-width: 1000px) { .residual-grid { grid-template-columns: minmax(0, 1fr); } }

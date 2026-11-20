@@ -20,6 +20,6 @@
 @else {<p class="note">Forecast scores use the equal-weight (w = 0.5) geometric index and 24 rolling origins. MAE, RMSE and interval width are in index points; WAPE is a percentage. Coverage and direction hits are counts out of 24. Intervals use paired residual bootstrap with one-month blocks. Weight controls apply to observed annual-change sensitivity, not to saved forecast fits.</p>}
 @if(view()==='index-forecast' && !hasChart()){<p>Choose one model, horizon and route to plot a forecast trajectory. The table below includes every selected result.</p>}
 @if(hasChart()) {<div class="chart tall">@defer {<canvas baseChart [data]="chartData()" [options]="options" type="line" role="img" aria-label="Interactive saved article result"></canvas>} @placeholder {<p>Loading chart…</p>}</div>}
-<div class="table-scroll"><table data-testid="explorer-table"><thead><tr>@for(c of columns();track $index){<th>{{c}}</th>}</tr></thead><tbody>@for(row of rows();track $index){<tr>@for(cell of row;track $index){<td>{{display(cell)}}</td>}</tr>}</tbody></table></div>
+<details class="result-table" open><summary>Numerical results · {{ rows().length }} rows</summary><div class="table-scroll"><table data-testid="explorer-table"><thead><tr>@for(c of columns();track $index){<th>{{c}}</th>}</tr></thead><tbody>@for(row of rows();track $index){<tr>@for(cell of row;track $index){<td>{{display(cell)}}</td>}</tr>}</tbody></table></div></details>
 } @else {<p role="status">Loading saved numerical results…</p>}
 </section>
