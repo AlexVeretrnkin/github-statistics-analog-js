@@ -1,6 +1,6 @@
 import { CommonModule, ViewportScroller } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, ChangeDetectionStrategy, computed, signal, inject, afterNextRender, Injector } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, signal, inject, afterNextRender, Injector, ElementRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { combineLatest } from 'rxjs';
@@ -90,10 +90,10 @@ export class ArticleExplorerComponent {
   protected readonly options:ChartConfiguration<'line'>['options']={responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{position:'bottom'}},scales:{x:{ticks:{maxTicksLimit:8}}}};
   protected display(v:string|number|boolean|null):string {return v==null?'—':typeof v==='number'?v.toLocaleString('en-US',{maximumFractionDigits:2}):String(v);}
   protected change(key:string,value:string):void {void this.router.navigate([], {relativeTo:this.route,queryParams:{[key]:value},queryParamsHandling:'merge',fragment:'article-explorer'});}
-  constructor(){const scroller=inject(ViewportScroller), injector=inject(Injector);combineLatest([inject(HttpClient).get<SavedResults>('/research/article-experiment/explorer.json'),this.route.queryParamMap,this.route.fragment]).pipe(takeUntilDestroyed()).subscribe({next:([d,p,fragment])=>{
+  constructor(){const host=inject<ElementRef<HTMLElement>>(ElementRef);const scroller=inject(ViewportScroller), injector=inject(Injector);combineLatest([inject(HttpClient).get<SavedResults>('/research/article-experiment/explorer.json'),this.route.queryParamMap,this.route.fragment]).pipe(takeUntilDestroyed()).subscribe({next:([d,p,fragment])=>{
     this.data.set(d);this.error.set(!!p.get('experiment')&&p.get('experiment')!==d.id);
     this.view.set(p.get('view')??'heldout'); this.framework.set(p.get('framework')??'all');this.metric.set(p.get('metric')??'github-stars');this.model.set(p.get('indexModel')??'SARIMA');this.horizon.set(p.get('indexH')??'6');this.forecastRoute.set(p.get('route')??'components');this.level.set(p.get('level')==='95'?'95':'80');
     const w=Number(p.get('weight')??.5),r=Number(p.get('radius')??.25);this.weight.set(Number.isFinite(w)?Math.max(0,Math.min(1,w)):.5);this.radius.set(Number.isFinite(r)?Math.max(0,Math.min(.5,r)):.25);
-    if(fragment==='article-explorer')afterNextRender(()=>scroller.scrollToAnchor(fragment),{injector});
+    if(fragment==='article-explorer')afterNextRender(()=>{const table=host.nativeElement.querySelector<HTMLDetailsElement>('details.result-table');if(table)table.open=true;scroller.scrollToAnchor(fragment);host.nativeElement.querySelector<HTMLElement>('#article-explorer')?.focus({preventScroll:true});},{injector});
   },error:()=>this.error.set(true)});}
 }
