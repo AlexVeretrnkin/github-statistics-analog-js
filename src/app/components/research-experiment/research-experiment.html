@@ -13,7 +13,6 @@
 
     </details>
     <p class="note"><strong>Published observation dataset:</strong> <a href="https://doi.org/10.5281/zenodo.23575437" target="_blank" rel="noopener noreferrer">Zenodo · DOI 10.5281/zenodo.23575437</a> · version 1.0.0 · published 23 October 2026.</p>
-    <p class="note"><strong>Article revision · 21 November 2026:</strong> <a href="/research/article/2026-11-21/manuscript.pdf">Article (PDF)</a> · <a href="/research/article/2026-11-21/supplement-residuals.pdf">Supplementary tables, figures and proofs (PDF)</a> · <a href="/research/article/2026-11-21/article-source.zip">LaTeX source package (ZIP)</a>.</p>
     <nav class="section-nav" aria-label="Experiment sections">
       @for (item of sections; track item[0]) {
         <a routerLink="/framework-popularity" [queryParams]="item[0] === 'article-explorer' ? {experiment: data.id, view: 'heldout', metric: 'github-stars', framework: 'all'} : accuracyLinkParams()" [fragment]="item[0]" [attr.aria-current]="section() === item[0] ? 'page' : null">{{ item[1] }}</a>
