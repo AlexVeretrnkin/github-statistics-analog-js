@@ -25,5 +25,6 @@ article_assets
 *.docx
 *.pdf
 
-# Published article PDFs must be copied into the web image.
-!public/research/article/**/*.pdf
+# Manuscripts are maintained outside the application release.
+article_jcam_*
+public/research/article

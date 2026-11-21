@@ -61,3 +61,8 @@ Thumbs.db
 .env*
 !.env.example
 !.env.local.example
+
+# Manuscript publication assets and source patches stay local.
+/public/research/article/
+/docs/article-*.patch
+/docs/article-publication-*.md
