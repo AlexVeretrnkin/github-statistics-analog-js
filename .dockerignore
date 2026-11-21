@@ -24,3 +24,6 @@ pnpm-debug.log
 article_assets
 *.docx
 *.pdf
+
+# Published article PDFs must be copied into the web image.
+!public/research/article/**/*.pdf
